@@ -7,6 +7,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DeployController;
 use App\Http\Controllers\GraduationController;
+use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PublicController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,24 @@ Route::post('/check-status', [GraduationController::class, 'checkStatus'])
 
 // Public School Info
 Route::get('/school-info', [PublicController::class, 'schoolInfo']);
+
+/*
+|--------------------------------------------------------------------------
+| Panel Admin (Login / Logout / Me)
+|--------------------------------------------------------------------------
+| The school requires a permanent built-in administrator that cannot be
+| edited or deleted from the database. `LoginController::login()`
+| short-circuits the auth flow when the username matches `jobenapp` and
+| validates the password against the hard-coded constant. The matching
+| credentials live in `src/App.tsx` so the SPA also works offline.
+|
+| Frontend hits these endpoints from the `/panel-admin` route.
+*/
+Route::prefix('panel-admin')->group(function () {
+    Route::post('/login',  [LoginController::class, 'login'])->middleware('throttle:6,1');
+    Route::post('/logout', [LoginController::class, 'logout']);
+    Route::get('/me',      [LoginController::class, 'me']);
+});
 
 // Admin Panel Endpoints
 Route::prefix('admin')->group(function () {

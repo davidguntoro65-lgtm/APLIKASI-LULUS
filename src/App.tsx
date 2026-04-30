@@ -216,8 +216,101 @@ const MOCK_STUDENTS = [
   }
 ];
 
+/* ------------------------------------------------------------------ *
+ *  Hardcoded Built-in Administrator (Read-Only — bypasses DB lookup)
+ * ------------------------------------------------------------------
+ *  These credentials are intentionally permanent. The login flow
+ *  short-circuits any database / API user lookup when the username
+ *  matches `ADMIN_USER` and the password matches `ADMIN_PASS`. The
+ *  account cannot be edited or deleted from the UI.
+ *
+ *  When a Laravel backend is wired up, mirror this exact check at the
+ *  top of the LoginController before falling through to the users
+ *  table — so the same credential pair always works regardless of the
+ *  database state.
+ */
+const ADMIN_USER = 'jobenapp';
+const ADMIN_PASS = '081460081343';
+const ADMIN_AUTH_KEY = 'skansagiri.adminAuth.v1';
+
+/** Path constants — keep both the URL and the SPA view in sync. */
+const ROUTE_PUBLIC = '/';
+const ROUTE_LOGIN = '/panel-admin';
+const ROUTE_DASHBOARD = '/panel-admin/dashboard';
+
+function pathToView(pathname: string, isAuthed: boolean): 'public' | 'login' | 'admin' {
+  if (pathname.startsWith(ROUTE_DASHBOARD)) return isAuthed ? 'admin' : 'login';
+  if (pathname.startsWith(ROUTE_LOGIN)) return isAuthed ? 'admin' : 'login';
+  return 'public';
+}
+
+function navigateTo(pathname: string) {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname !== pathname) {
+    window.history.pushState({}, '', pathname);
+  }
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 export default function App() {
-  const [view, setView] = useState<'public' | 'admin'>('public');
+  // Authentication state — sessionStorage so closing the tab logs out.
+  const [isAuthed, setIsAuthed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try { return window.sessionStorage.getItem(ADMIN_AUTH_KEY) === '1'; } catch { return false; }
+  });
+
+  const [view, setView] = useState<'public' | 'login' | 'admin'>(() => {
+    if (typeof window === 'undefined') return 'public';
+    const initialAuthed = (() => {
+      try { return window.sessionStorage.getItem(ADMIN_AUTH_KEY) === '1'; } catch { return false; }
+    })();
+    return pathToView(window.location.pathname, initialAuthed);
+  });
+
+  // Login form state
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginShowPass, setLoginShowPass] = useState(false);
+
+  // Keep the SPA view in sync with browser back/forward navigation.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => setView(pathToView(window.location.pathname, isAuthed));
+    sync();
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, [isAuthed]);
+
+  const handleAdminLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setLoginError(null);
+    setLoginBusy(true);
+    // Tiny artificial delay so the user perceives the validation work.
+    await new Promise((r) => setTimeout(r, 280));
+    if (loginUser.trim() === ADMIN_USER && loginPass === ADMIN_PASS) {
+      try { window.sessionStorage.setItem(ADMIN_AUTH_KEY, '1'); } catch { /* noop */ }
+      auditLog.log({ actor: 'admin', action: 'login', meta: { user: ADMIN_USER } });
+      setIsAuthed(true);
+      setLoginUser('');
+      setLoginPass('');
+      setLoginBusy(false);
+      navigateTo(ROUTE_DASHBOARD);
+      return;
+    }
+    auditLog.log({ actor: 'admin', action: 'login.failed', meta: { user: loginUser.trim() || '(empty)' } });
+    setLoginBusy(false);
+    setLoginError('Username atau password salah. Akun bawaan bersifat permanen — hubungi pengembang jika lupa.');
+  };
+
+  const handleAdminLogout = () => {
+    try { window.sessionStorage.removeItem(ADMIN_AUTH_KEY); } catch { /* noop */ }
+    auditLog.log({ actor: 'admin', action: 'logout' });
+    setIsAuthed(false);
+    navigateTo(ROUTE_PUBLIC);
+  };
+
   const [adminTab, setAdminTab] = useState<'overview' | 'students' | 'import' | 'settings' | 'maintenance'>('overview');
 
   // Banner shown across the admin app whenever a request fell back to localStorage.
@@ -871,6 +964,145 @@ export default function App() {
     showToast('success', 'Riwayat pengecekan dikosongkan.');
   };
 
+  if (view === 'login') {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#EFF4FF] via-white to-[#F9FAFB] font-sans">
+        {/* Top brand bar */}
+        <div className="px-6 md:px-12 py-5 flex items-center justify-between">
+          <button
+            onClick={() => navigateTo(ROUTE_PUBLIC)}
+            className="flex items-center gap-3 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#1D4ED8] flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(29,78,216,0.55)] group-hover:scale-[1.04] transition-transform">
+              <GraduationCap size={20} className="text-white" />
+            </div>
+            <div className="text-left">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#1D4ED8]">SKANSAGIRI</p>
+              <p className="text-sm font-extrabold text-[#111827] -mt-0.5">Portal Admin</p>
+            </div>
+          </button>
+          <button
+            onClick={() => navigateTo(ROUTE_PUBLIC)}
+            className="text-[12px] font-semibold text-[#6B7280] hover:text-[#1D4ED8] flex items-center gap-1.5 px-3 py-2 rounded-full border border-[#E5E7EB] hover:border-[#DBEAFE] hover:bg-[#EFF4FF] transition-colors"
+          >
+            <ArrowRight size={12} className="rotate-180" />
+            Kembali ke halaman publik
+          </button>
+        </div>
+
+        {/* Login card */}
+        <div className="flex-1 flex items-center justify-center px-4 py-10">
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-md bg-white rounded-3xl border border-[#E5E7EB] shadow-[0_30px_80px_-20px_rgba(15,23,42,0.18)] overflow-hidden"
+          >
+            <div className="bg-[#1D4ED8] text-white px-7 py-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                <Shield size={20} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-80">Akses Terbatas</p>
+                <h1 className="text-lg font-extrabold tracking-tight">Login Panel Admin</h1>
+              </div>
+            </div>
+
+            <form onSubmit={handleAdminLogin} className="p-7 space-y-5">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#6B7280] mb-2">
+                  Username
+                </label>
+                <div className="relative">
+                  <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                  <input
+                    type="text"
+                    value={loginUser}
+                    onChange={(e) => setLoginUser(e.target.value)}
+                    autoComplete="username"
+                    autoFocus
+                    placeholder="Masukkan username admin"
+                    className="quantum-input pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#6B7280] mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                  <input
+                    type={loginShowPass ? 'text' : 'password'}
+                    value={loginPass}
+                    onChange={(e) => setLoginPass(e.target.value)}
+                    autoComplete="current-password"
+                    placeholder="Masukkan password"
+                    className="quantum-input pl-10 pr-20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLoginShowPass((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-[#1D4ED8] hover:text-[#1E40AF] px-2 py-1 rounded-md hover:bg-[#EFF4FF] transition-colors"
+                  >
+                    {loginShowPass ? 'Sembunyi' : 'Tampil'}
+                  </button>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {loginError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[12px] font-medium"
+                  >
+                    <XCircle size={14} className="shrink-0 mt-0.5" />
+                    <span>{loginError}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <button
+                type="submit"
+                disabled={loginBusy || !loginUser || !loginPass}
+                className="quantum-button w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loginBusy ? (
+                  <>
+                    <Activity size={16} className="animate-spin" />
+                    Memverifikasi…
+                  </>
+                ) : (
+                  <>
+                    <Lock size={16} />
+                    Masuk Panel Admin
+                  </>
+                )}
+              </button>
+
+              <div className="pt-3 border-t border-[#E5E7EB] flex items-start gap-2 text-[11px] text-[#6B7280] leading-relaxed">
+                <ShieldCheck size={14} className="text-[#1D4ED8] shrink-0 mt-0.5" />
+                <p>
+                  Kredensial admin bawaan bersifat <strong className="text-[#111827]">permanen &amp; read-only</strong>
+                  {' '}dan tidak dapat diubah dari basis data. Hubungi pengembang sistem jika perlu reset.
+                </p>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+
+        <footer className="px-6 md:px-12 py-6 text-center text-[11px] text-slate-400 font-medium">
+          Created by: <span className="text-slate-500 font-semibold">TIM IT SKANSAGIRI</span>
+          <span className="mx-2 text-slate-300">|</span>
+          Powered by: <span className="text-slate-500 font-semibold">Joben Enterprise</span>
+        </footer>
+      </div>
+    );
+  }
+
   if (view === 'admin') {
     return (
       <div className="min-h-screen flex bg-slate-50 font-sans">
@@ -929,8 +1161,13 @@ export default function App() {
                <p className="mb-1">Versi Sistem: 2.0.26</p>
                <p>Joben Enterprise © 2026</p>
              </div>
+             <div className="px-1 pb-1">
+               <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/80 mb-0.5">Akun Aktif</p>
+               <p className="text-[12px] font-extrabold text-white tracking-tight">{ADMIN_USER}</p>
+               <p className="text-[10px] text-slate-400 font-medium">Built-in &middot; Read-Only</p>
+             </div>
              <button 
-                onClick={() => setView('public')}
+                onClick={handleAdminLogout}
                 className="w-full flex items-center justify-between px-4 py-3 bg-red-500/10 text-red-500 rounded-xl font-bold text-xs hover:bg-red-500/20 transition-all"
              >
                LOGOUT
@@ -2595,7 +2832,7 @@ export default function App() {
             © 2026 {schoolInfo?.school_name || "SMKN 1 Wonogiri"}
           </p>
           <button
-            onClick={() => setView('admin')}
+            onClick={() => navigateTo(ROUTE_LOGIN)}
             className="text-[11px] font-medium text-[#6B7280] hover:text-[#1D4ED8] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E5E7EB] hover:border-[#DBEAFE] hover:bg-[#EFF4FF]"
           >
             <LayoutDashboard size={11} />

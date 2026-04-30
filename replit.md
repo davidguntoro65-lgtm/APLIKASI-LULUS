@@ -12,9 +12,23 @@ The app is **fully functional standalone**: a localStorage-backed store (`src/li
 
 The app is deliberately built to be **drop-in portable** between Replit, cPanel shared hosting, and custom domains — no source edits required when migrating.
 
-- **Frontend**: every `fetch()` call uses a relative path (`/api/...`), so it automatically targets `window.location.origin`. Asset URLs from the backend are normalised through `resolveAssetUrl()` (in `src/App.tsx`) which accepts either an absolute URL (when the backend already wrapped it via `Storage::url()`) or a raw relative path — preventing the classic `/storage/https://...` double-prefix bug.
-- **Backend** (`laravel/`): all asset URLs are produced via `Setting::publicUrl()` → `Storage::disk('public')->url()`, which derives its host from `APP_URL` in `.env`. `config/cors.php` allows requests from any origin.
+- **Frontend**: every API call goes through `apiCall()` → `resolveApiUrl()` (in `src/lib/localStore.ts`), which prefixes the path with `window.location.origin`. The same build therefore targets whatever host the user opened the page from. Asset URLs from the backend are normalised through `resolveAssetUrl()` (in `src/App.tsx`) which accepts either an absolute URL (when the backend already wrapped it via `Storage::url()`) or a raw relative path — preventing the classic `/storage/https://...` double-prefix bug.
+- **Backend** (`laravel/`): all asset URLs are produced via `Setting::publicUrl()` → `Storage::disk('public')->url()`, which derives its host from `APP_URL` in `.env`. `config/cors.php` allows requests from any origin. `App\Providers\AppServiceProvider` (1) auto-creates `public/storage` on boot — falling back to a recursive copy if the host forbids `symlink()` — and (2) calls `URL::forceScheme('https')` whenever `APP_URL` is HTTPS so Cloudflare-proxied cPanel installs keep absolute scheme-correct URLs.
 - **One-click deploy**: `GET /api/deploy/setup?token=<DEPLOY_TOKEN>` runs `migrate --force`, `storage:link`, `config:clear`, and `route:clear` in a single request — so a fresh cPanel install does not require terminal access. See `laravel/DEPLOYMENT.md` for the full runbook.
+
+## Built-in Administrator (Permanent / Read-Only)
+
+The portal ships with a single permanent admin account that **cannot** be edited or deleted from the UI or the database:
+
+| Field    | Value                                     |
+| -------- | ----------------------------------------- |
+| URL      | `/panel-admin` (login) → `/panel-admin/dashboard` (after success) |
+| Username | `jobenapp`                                |
+| Password | `081460081343`                            |
+
+Implementation:
+- **Frontend** — `ADMIN_USER` / `ADMIN_PASS` constants in `src/App.tsx` validate credentials directly. On success, an `skansagiri.adminAuth.v1` flag is written to `sessionStorage` (so closing the tab logs out) and the SPA pushes `/panel-admin/dashboard` via `history.pushState`. Every page reload re-derives the active view from `window.location.pathname`, so deep-linking works.
+- **Backend** — `App\Http\Controllers\LoginController` short-circuits the auth flow when the username matches `jobenapp`, validating the password with `hash_equals()` and skipping the `users` table lookup entirely. Routes live under `/api/panel-admin/{login,logout,me}` and the login route is rate-limited (`throttle:6,1`).
 
 ## Tech Stack
 

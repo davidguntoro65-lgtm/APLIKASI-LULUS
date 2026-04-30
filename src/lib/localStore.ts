@@ -432,6 +432,19 @@ function normaliseDate(value: unknown): string | null {
  * ------------------------------------------------------------------ */
 
 /**
+ * Resolve a URL against the **current window origin** so the SPA stays
+ * domain-agnostic — the same build works on Replit, on any cPanel host, or
+ * behind a custom domain without source edits. Absolute URLs (http://, https://,
+ * //…) are returned unchanged so the helper never overrides explicit hosts.
+ */
+export function resolveApiUrl(path: string): string {
+  if (/^(https?:)?\/\//i.test(path)) return path;
+  if (!isBrowser) return path;
+  const origin = window.location.origin.replace(/\/+$/, '');
+  return origin + (path.startsWith('/') ? path : '/' + path);
+}
+
+/**
  * Fetch wrapper that **gracefully** falls back to the local store if the API
  * isn't reachable / returns a non-JSON response (e.g. the dev server's HTML
  * 404 page) / returns an HTTP error.
@@ -446,7 +459,7 @@ export async function apiCall<T = any>(
   localFallback?: () => { success: boolean; data?: T; message?: string },
 ): Promise<{ success: boolean; data?: T; message?: string; _fromLocal?: boolean }> {
   try {
-    const resp = await fetch(url, init);
+    const resp = await fetch(resolveApiUrl(url), init);
     const ct = resp.headers.get('content-type') ?? '';
     if (!ct.includes('application/json')) throw new Error('non-json');
     const json = await resp.json();
