@@ -3576,35 +3576,72 @@ export default function App() {
           </AnimatePresence>
       </main>
 
-      {/* Motivational Section from Kepala Sekolah — conditional, hidden when empty */}
+      {/* ============================================================
+          Sambutan Kepala Sekolah — refactored per spec:
+          • Single dynamic paragraph from settings (motivation_message)
+          • Inter sans-serif, 16px, NO italic, carbon-black #1A1A1A
+          • Minimalist white card, rounded photo frame
+          • Oversized gold quote-mark accent in the top-left
+          ============================================================ */}
       {motivationMessage && (
-        <section className="px-4 sm:px-6 md:px-12 py-14 bg-white border-t border-[#E2E8F0] no-print">
+        <section className="px-4 sm:px-6 md:px-12 py-14 sm:py-16 bg-[#F9FAFB] border-t border-[#E5E7EB] no-print">
           <div className="max-w-4xl mx-auto">
-            <div className="module-card-blue p-8 sm:p-10 flex flex-col sm:flex-row gap-6 items-center sm:items-start">
-              <div className="shrink-0 relative">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-[#0F172A]/15 bg-white overflow-hidden flex items-center justify-center">
-                  {(principalPhotoPreview || principalPhoto) ? (
-                    <img
-                      src={principalPhotoPreview || resolveAssetUrl(principalPhoto) || ''}
-                      alt={principalName || 'Kepala Sekolah'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User size={36} className="text-[#94A3B8]" strokeWidth={1.5} />
+            <div className="relative bg-white rounded-2xl border border-[#E5E7EB] shadow-[0_2px_4px_rgba(15,23,42,0.04),0_12px_28px_-12px_rgba(15,23,42,0.10)] p-8 sm:p-10 overflow-hidden">
+              {/* Big gold quote-mark — purely decorative accent, anchored
+                  top-left so the actual paragraph still reads cleanly. */}
+              <span
+                aria-hidden="true"
+                className="absolute top-2 left-4 sm:top-3 sm:left-6 select-none pointer-events-none font-serif-display font-extrabold leading-none text-[#D4AF37] opacity-90"
+                style={{ fontSize: '110px' }}
+              >
+                &ldquo;
+              </span>
+
+              <div className="relative flex flex-col sm:flex-row gap-6 sm:gap-8 items-center sm:items-start">
+                {/* Principal photo — circular precision frame with subtle
+                    gold ring + soft shadow lift. */}
+                <div className="shrink-0">
+                  <div className="relative w-28 h-28 sm:w-32 sm:h-32">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#D4AF37]/30 to-[#1D4ED8]/15 blur-lg" />
+                    <div className="relative w-full h-full rounded-full overflow-hidden ring-4 ring-white shadow-[0_8px_24px_-8px_rgba(15,23,42,0.25)] border border-[#E5E7EB] bg-white flex items-center justify-center">
+                      {(principalPhotoPreview || principalPhoto) ? (
+                        <img
+                          src={principalPhotoPreview || resolveAssetUrl(principalPhoto) || ''}
+                          alt={principalName || 'Kepala Sekolah'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User size={42} className="text-[#94A3B8]" strokeWidth={1.5} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 text-center sm:text-left pt-2 sm:pt-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37] mb-3">
+                    Sambutan Kepala Sekolah
+                  </p>
+                  {/* Single dynamic paragraph — Inter, 16px, normal (not italic),
+                      carbon black for max contrast, relaxed leading for
+                      comfortable reading. */}
+                  <p
+                    className="font-sans text-[#1A1A1A] font-normal not-italic"
+                    style={{ fontSize: '16px', lineHeight: '1.7', fontFamily: 'var(--font-sans)' }}
+                  >
+                    {motivationMessage}
+                  </p>
+                  {principalName && (
+                    <div className="mt-5 pt-4 border-t border-[#E5E7EB] inline-flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <p className="text-[14px] font-bold text-[#0F172A] tracking-tight">
+                        {principalName}
+                      </p>
+                      <span className="hidden sm:inline text-[#CBD5E1]">•</span>
+                      <p className="text-[12px] font-semibold text-[#6B7280] tracking-wide">
+                        Kepala Sekolah
+                      </p>
+                    </div>
                   )}
                 </div>
-                <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-[#0F172A] rounded-full flex items-center justify-center ring-2 ring-[#D4AF37]/40">
-                  <Quote size={14} className="text-[#D4AF37]" />
-                </div>
-              </div>
-              <div className="flex-1 text-center sm:text-left">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1D4ED8] mb-2">Sambutan Kepala Sekolah</p>
-                <p className="font-serif-display text-[18px] sm:text-[20px] leading-relaxed text-[#1A1A1A] font-medium italic">
-                  &ldquo;{motivationMessage}&rdquo;
-                </p>
-                {principalName && (
-                  <p className="text-sm font-bold text-[#1A1A1A] mt-4 tracking-tight">— {principalName}</p>
-                )}
               </div>
             </div>
           </div>
