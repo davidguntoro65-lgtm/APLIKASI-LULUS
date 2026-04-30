@@ -275,6 +275,62 @@ class AdminController extends Controller
     }
 
     /**
+     * Realwork — bulk delete a list of student ids selected via the
+     * Data Siswa toolbar. Validates the payload, falls back gracefully
+     * when nothing matches, and returns the count actually removed so
+     * the frontend toast can be exact.
+     */
+    public function bulkDeleteStudents(Request $request)
+    {
+        $data = $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $removed = Student::whereIn('id', $data['ids'])->count();
+        if ($removed > 0) {
+            Student::whereIn('id', $data['ids'])->delete();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Berhasil menghapus {$removed} siswa.",
+            'data'    => ['removed' => $removed],
+        ]);
+    }
+
+    /**
+     * Realwork — bulk set `status_graduation` for a list of student ids
+     * selected via the Data Siswa toolbar. Mirrors the local store's
+     * bulkSetStatus() so frontend behaviour is identical online/offline.
+     */
+    public function bulkSetStatus(Request $request)
+    {
+        $data = $request->validate([
+            'ids'    => 'required|array|min:1',
+            'ids.*'  => 'integer',
+            'status' => 'required|in:0,1',
+        ]);
+
+        $status  = (int) $data['status'];
+        $updated = Student::whereIn('id', $data['ids'])
+            ->where('status_graduation', '!=', $status)
+            ->count();
+        if ($updated > 0) {
+            Student::whereIn('id', $data['ids'])->update([
+                'status_graduation' => $status,
+                'updated_at'        => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Status diperbarui untuk {$updated} siswa.",
+            'data'    => ['updated' => $updated],
+        ]);
+    }
+
+    /**
      * Realwork — wipe the students table (and import_archives, since a
      * restore would re-introduce the rows). Settings, audit log, and the
      * integrity pact are preserved so the operator does not lose portal

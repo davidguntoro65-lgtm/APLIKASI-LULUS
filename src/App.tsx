@@ -493,6 +493,21 @@ export default function App() {
   const [editStudent, setEditStudent] = useState<any | null>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
+  // Bulk-action selection for the Data Siswa table — tracked as an id Set
+  // so checking and unchecking individual rows is O(1). The selection is
+  // intentionally cleared whenever the underlying student list refreshes
+  // (after a delete / bulk update / search) so stale ids never linger.
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
   // Maintenance tab state
   const [deployToken, setDeployToken] = useState<string>("");
   const [deployBusy, setDeployBusy] = useState(false);
@@ -571,6 +586,15 @@ export default function App() {
     if (json.success && json.data) {
       const list = Array.isArray(json.data?.data) ? json.data.data : (Array.isArray(json.data) ? json.data : []);
       setStudentsData(list);
+      // Drop any selected ids that no longer appear in the refreshed list,
+      // so a stale selection cannot bleed into a subsequent bulk action.
+      setSelectedIds((prev) => {
+        if (prev.size === 0) return prev;
+        const present = new Set(list.map((s: any) => s.id));
+        const next = new Set<number>();
+        prev.forEach((id) => { if (present.has(id)) next.add(id); });
+        return next;
+      });
     }
     setIsLoading(false);
   };
@@ -1014,6 +1038,79 @@ export default function App() {
         );
         fetchStats();
         fetchStudents();
+        refreshMaintenancePanels();
+      },
+    });
+  };
+
+  // Bulk-action handlers used by the Data Siswa toolbar. Each one resolves
+  // its action through `apiCall()` so a real Laravel backend can take over
+  // transparently when the relevant endpoint is mounted; otherwise the
+  // localStore methods act as the source of truth.
+  const handleBulkDeleteStudents = () => {
+    const ids: number[] = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    askConfirm({
+      title: 'Hapus Siswa Terpilih',
+      message: (
+        <>
+          Anda akan menghapus <strong>{ids.length} siswa</strong> dari daftar.
+          Tindakan ini permanen dan tidak dapat dibatalkan.
+        </>
+      ),
+      confirmLabel: `Hapus ${ids.length} Siswa`,
+      danger: true,
+      requirePhrase: ids.length >= 10 ? 'HAPUS TERPILIH' : undefined,
+      onConfirm: async () => {
+        const result = await apiCall<{ removed: number }>(
+          '/api/admin/students/bulk-delete',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids }),
+          },
+          () => ({ success: true, data: { removed: studentStore.bulkRemove(ids) } }),
+        );
+        const removed = result?.data?.removed ?? 0;
+        showToast('success', `Berhasil menghapus ${removed} siswa.`);
+        clearSelection();
+        fetchStats();
+        fetchStudents(adminSearch);
+        refreshMaintenancePanels();
+      },
+    });
+  };
+
+  const handleBulkSetStatus = (status: 0 | 1) => {
+    const ids: number[] = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const label = status === 1 ? 'LULUS' : 'BELUM LULUS';
+    askConfirm({
+      title: `Tandai ${ids.length} Siswa sebagai ${label}`,
+      message: (
+        <>
+          Status kelulusan <strong>{ids.length} siswa</strong> akan diubah menjadi{' '}
+          <strong className={status === 1 ? 'text-emerald-600' : 'text-rose-600'}>{label}</strong>.
+          Anda masih bisa mengubahnya satu per satu lewat tombol edit.
+        </>
+      ),
+      confirmLabel: `Tandai ${label}`,
+      danger: status === 0,
+      onConfirm: async () => {
+        const result = await apiCall<{ updated: number }>(
+          '/api/admin/students/bulk-status',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, status }),
+          },
+          () => ({ success: true, data: { updated: studentStore.bulkSetStatus(ids, status) } }),
+        );
+        const updated = result?.data?.updated ?? 0;
+        showToast('success', `Status diperbarui untuk ${updated} siswa.`);
+        clearSelection();
+        fetchStats();
+        fetchStudents(adminSearch);
         refreshMaintenancePanels();
       },
     });
@@ -1468,11 +1565,92 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+
+                {/* Bulk-action toolbar — only renders when at least one row
+                    is selected. Sticks to the top of the table so the actions
+                    stay visible while scrolling through long rosters. */}
+                <AnimatePresence>
+                  {selectedIds.size > 0 && (
+                    <motion.div
+                      key="bulk-toolbar"
+                      initial={{ opacity: 0, y: -8, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -8, height: 0 }}
+                      className="border-b border-[#DBEAFE] bg-gradient-to-r from-[#EFF4FF] to-white"
+                    >
+                      <div className="px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span className="w-9 h-9 rounded-xl bg-[#1D4ED8] text-white flex items-center justify-center text-[12px] font-black">
+                            {selectedIds.size}
+                          </span>
+                          <div>
+                            <p className="text-[13px] font-extrabold text-[#111827]">
+                              {selectedIds.size} siswa dipilih
+                            </p>
+                            <button
+                              type="button"
+                              onClick={clearSelection}
+                              className="text-[10px] font-bold uppercase tracking-widest text-[#1D4ED8] hover:underline"
+                            >
+                              Batalkan pilihan
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleBulkSetStatus(1)}
+                            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-b-4 border-emerald-800 flex items-center gap-2"
+                          >
+                            <CheckCircle size={14} />
+                            Tandai Lulus
+                          </button>
+                          <button
+                            onClick={() => handleBulkSetStatus(0)}
+                            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-b-4 border-amber-700 flex items-center gap-2"
+                          >
+                            <XCircle size={14} />
+                            Tandai Belum Lulus
+                          </button>
+                          <button
+                            onClick={handleBulkDeleteStudents}
+                            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-b-4 border-rose-800 flex items-center gap-2"
+                          >
+                            <Trash2 size={14} />
+                            Hapus Terpilih
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 <div className="overflow-x-auto">
                    <table className="w-full">
                       <thead>
                          <tr>
-                            <th className="admin-table-header pl-8">NISN</th>
+                            <th className="admin-table-header pl-8 w-[44px]">
+                              {studentsData.length > 0 && (
+                                <input
+                                  type="checkbox"
+                                  aria-label="Pilih semua siswa di halaman ini"
+                                  checked={selectedIds.size > 0 && studentsData.every((s) => selectedIds.has(s.id))}
+                                  ref={(el) => {
+                                    if (!el) return;
+                                    const some = studentsData.some((s) => selectedIds.has(s.id));
+                                    const all  = studentsData.every((s) => selectedIds.has(s.id));
+                                    el.indeterminate = some && !all;
+                                  }}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedIds(new Set(studentsData.map((s) => s.id)));
+                                    } else {
+                                      clearSelection();
+                                    }
+                                  }}
+                                  className="w-4 h-4 rounded border-2 border-slate-300 text-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/40 cursor-pointer"
+                                />
+                              )}
+                            </th>
+                            <th className="admin-table-header">NISN</th>
                             <th className="admin-table-header">Nama Lengkap</th>
                             <th className="admin-table-header">Kelas</th>
                             <th className="admin-table-header">Konsentrasi Keahlian</th>
@@ -1483,7 +1661,7 @@ export default function App() {
                       <tbody>
                          {studentsData.length === 0 ? (
                            <tr>
-                             <td colSpan={6} className="px-8 py-20 text-center">
+                             <td colSpan={7} className="px-8 py-20 text-center">
                                <div className="flex flex-col items-center gap-3 text-slate-400">
                                  <User size={40} strokeWidth={1.5} />
                                  <p className="text-sm font-bold text-slate-500">Belum ada data siswa.</p>
@@ -1504,9 +1682,20 @@ export default function App() {
                              </td>
                            </tr>
                          ) : (
-                           studentsData.map((student) => (
-                            <tr key={student.id} className="admin-table-row group">
-                               <td className="px-8 py-6 font-mono text-xs font-bold text-slate-500">{student.nisn}</td>
+                           studentsData.map((student) => {
+                            const isChecked = selectedIds.has(student.id);
+                            return (
+                            <tr key={student.id} className={`admin-table-row group ${isChecked ? 'bg-[#EFF4FF]/60' : ''}`}>
+                               <td className="pl-8 py-6">
+                                 <input
+                                   type="checkbox"
+                                   aria-label={`Pilih ${student.name}`}
+                                   checked={isChecked}
+                                   onChange={() => toggleSelect(student.id)}
+                                   className="w-4 h-4 rounded border-2 border-slate-300 text-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/40 cursor-pointer"
+                                 />
+                               </td>
+                               <td className="px-4 py-6 font-mono text-xs font-bold text-slate-500">{student.nisn}</td>
                                <td className="px-6 py-6 transition-all group-hover:pl-8">
                                   <p className="font-black text-slate-800 text-sm tracking-tight uppercase">{student.name}</p>
                                   <p className="text-[10px] text-slate-400 font-medium mt-1 italic">
@@ -1529,16 +1718,51 @@ export default function App() {
                                   </span>
                                </td>
                                <td className="px-8 py-6 text-right">
-                                  <button
-                                    onClick={() => setEditStudent(student)}
-                                    className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm"
-                                    title="Edit status kelulusan"
-                                  >
-                                     <Settings size={18} />
-                                  </button>
+                                 <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      onClick={() => setEditStudent(student)}
+                                      className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                                      title="Edit status kelulusan"
+                                    >
+                                       <Settings size={18} />
+                                    </button>
+                                    <button
+                                      onClick={() => askConfirm({
+                                        title: 'Hapus Siswa',
+                                        message: (
+                                          <>
+                                            Hapus siswa <strong>{student.name}</strong> (NISN {student.nisn})
+                                            secara permanen?
+                                          </>
+                                        ),
+                                        confirmLabel: 'Hapus Siswa',
+                                        danger: true,
+                                        onConfirm: async () => {
+                                          const result = await apiCall<{ removed: number }>(
+                                            '/api/admin/students/bulk-delete',
+                                            {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ ids: [student.id] }),
+                                            },
+                                            () => ({ success: true, data: { removed: studentStore.bulkRemove([student.id]) } }),
+                                          );
+                                          const removed = result?.data?.removed ?? 0;
+                                          showToast(removed > 0 ? 'success' : 'error', removed > 0 ? `Siswa ${student.name} dihapus.` : 'Gagal menghapus siswa.');
+                                          fetchStats();
+                                          fetchStudents(adminSearch);
+                                          refreshMaintenancePanels();
+                                        },
+                                      })}
+                                      className="p-3 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                                      title="Hapus siswa"
+                                    >
+                                       <Trash2 size={18} />
+                                    </button>
+                                  </div>
                                </td>
                             </tr>
-                           ))
+                           )})
                          )}
                       </tbody>
 

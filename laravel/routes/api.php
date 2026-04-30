@@ -48,6 +48,9 @@ Route::prefix('admin')->group(function () {
     // Realwork — purge entire students table (and import_archives) so the
     // operator can hand the portal over to a fresh batch of TA 2025/2026 data.
     Route::post('/students/purge', [AdminController::class, 'purgeStudents']);
+    // Bulk-action endpoints used by the Data Siswa toolbar (multi-select).
+    Route::post('/students/bulk-delete', [AdminController::class, 'bulkDeleteStudents']);
+    Route::post('/students/bulk-status', [AdminController::class, 'bulkSetStatus']);
 });
 
 /*

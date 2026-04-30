@@ -260,6 +260,56 @@ export const studentStore = {
   },
 
   /**
+   * Bulk delete by IDs — used by the "Hapus Terpilih" action in the Data
+   * Siswa tab. Returns the actual count of records removed (so the toast
+   * can say "Berhasil menghapus 12 siswa." even when some IDs were already
+   * gone). Safe to call with an empty array.
+   */
+  bulkRemove(ids: number[]): number {
+    if (!ids?.length) return 0;
+    const idSet = new Set(ids);
+    const all = readJSON<Student[]>(K.students, []);
+    const next = all.filter((s) => !idSet.has(s.id));
+    const removed = all.length - next.length;
+    if (removed > 0) {
+      writeJSON(K.students, next);
+      audit.log({
+        actor: 'admin',
+        action: 'student.bulk_remove',
+        meta: { ids, removed },
+      });
+    }
+    return removed;
+  },
+
+  /**
+   * Bulk update of `status_graduation` for many students at once — used by
+   * the "Tandai Lulus / Belum Lulus" buttons in the bulk-action toolbar.
+   * Returns the count of records actually updated.
+   */
+  bulkSetStatus(ids: number[], status: 0 | 1): number {
+    if (!ids?.length) return 0;
+    const idSet = new Set(ids);
+    const all = readJSON<Student[]>(K.students, []);
+    let updated = 0;
+    const next = all.map((s) => {
+      if (!idSet.has(s.id)) return s;
+      if (s.status_graduation === status) return s;
+      updated++;
+      return { ...s, status_graduation: status, updated_at: nowIso() } as Student;
+    });
+    if (updated > 0) {
+      writeJSON(K.students, next);
+      audit.log({
+        actor: 'admin',
+        action: 'student.bulk_set_status',
+        meta: { ids, status, updated },
+      });
+    }
+    return updated;
+  },
+
+  /**
    * Bulk upsert from an Excel import. Rows whose NISN already exists are
    * updated in-place; new NISNs are appended. Returns counts + a snapshot
    * suitable for stashing in the import archive.
