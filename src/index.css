@@ -275,9 +275,40 @@
     0 8px 24px rgba(185, 28, 28, 0.08);
 }
 
-/* Print Styles */
+/* Print Styles — optimised for SKL Digital PDF export */
 @media print {
   .no-print { display: none !important; }
   .print-only { display: block !important; }
-  body { background: white; }
+
+  html, body {
+    background: white !important;
+    color: #1A1A1A !important;
+  }
+
+  /* Strip the navy hero gradient + grid pattern when printing the result card */
+  .premium-hero {
+    background: white !important;
+    padding: 0 !important;
+  }
+  .premium-hero::before,
+  .premium-hero::after {
+    display: none !important;
+  }
+
+  /* Page setup — A4 portrait, generous margins */
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  /* Keep the result card from being split across pages */
+  .quantum-card,
+  .official-stamp {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

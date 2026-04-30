@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download, Lock, ShieldCheck, Activity, Sparkles, Quote, AlertTriangle, Info, Megaphone, ServerCog, RefreshCw, HardDrive, Archive, FileSpreadsheet, RotateCcw, Trash2, Shield, Save, Heart, Wifi, History } from 'lucide-react';
+import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download, Lock, ShieldCheck, Activity, Sparkles, Quote, AlertTriangle, Info, Megaphone, ServerCog, RefreshCw, HardDrive, Archive, FileSpreadsheet, RotateCcw, Trash2, Shield, Save, Heart, Wifi, History, Share2, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -863,6 +863,40 @@ export default function App() {
         }
       })
       .finally(() => setIsSearching(false));
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Share & Download — student result card
+   * ------------------------------------------------------------------ */
+
+  const handlePrintResult = () => {
+    if (!result) return;
+    showToast('info', 'Membuka dialog cetak — pilih "Save as PDF" untuk menyimpan SKL Digital.');
+    setTimeout(() => window.print(), 250);
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!result) return;
+    const schoolName = schoolInfo?.school_name || 'SMKN 1 Wonogiri';
+    const status = result.status_graduation ? 'LULUS' : 'BELUM LULUS';
+    const lines = [
+      `*PENGUMUMAN KELULUSAN — ${schoolName}*`,
+      `_Tahun Pelajaran 2025/2026_`,
+      ``,
+      `Nama   : ${result.name}`,
+      `NISN   : ${result.nisn}`,
+      `Kelas  : ${result.class || '-'}`,
+      `Jurusan: ${result.major || '-'}`,
+      `Status : *${status}*`,
+      ``,
+      `Cek pengumuman resmi di:`,
+      window.location.origin,
+      ``,
+      `— Portal Kelulusan ${schoolName}`,
+    ];
+    const text = encodeURIComponent(lines.join('\n'));
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
+    showToast('success', 'Membuka WhatsApp untuk membagikan hasil pengumuman.');
   };
 
   /* ------------------------------------------------------------------ *
@@ -3156,14 +3190,26 @@ export default function App() {
                      </div>
 
                      <div className="mt-10 flex flex-col sm:flex-row gap-4 pt-8 border-t border-[#E5E7EB] items-center justify-between">
-                        <div className="flex gap-3 w-full sm:w-auto order-2 sm:order-1">
-                           <button className="flex-1 sm:flex-none quantum-button px-6 flex items-center justify-center gap-2">
-                              <FileText size={16} />
-                              Unduh SKL Digital
+                        <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto order-2 sm:order-1 no-print">
+                           <button
+                              onClick={handlePrintResult}
+                              className="flex-1 sm:flex-none quantum-button px-5 flex items-center justify-center gap-2"
+                              title="Cetak / Simpan sebagai PDF"
+                           >
+                              <Printer size={16} />
+                              Unduh SKL (PDF)
+                           </button>
+                           <button
+                              onClick={handleShareWhatsApp}
+                              className="flex-1 sm:flex-none px-5 py-3 rounded-xl font-bold text-[13px] bg-[#25D366] text-white hover:bg-[#1ebe57] transition-colors flex items-center justify-center gap-2 shadow-[0_8px_20px_-8px_rgba(37,211,102,0.5)]"
+                              title="Bagikan hasil pengumuman via WhatsApp"
+                           >
+                              <Share2 size={16} />
+                              Bagikan WhatsApp
                            </button>
                            <button
                              onClick={() => setResult(null)}
-                             className="px-6 quantum-button-ghost"
+                             className="px-5 quantum-button-ghost"
                            >
                              Kembali
                            </button>

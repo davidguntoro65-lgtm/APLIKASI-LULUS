@@ -85,6 +85,7 @@ The portal was rebranded from "Quantum Modern Blue" to a darker, more authoritat
 ## Key Features
 
 - **Integrity Pact (Pakta Integritas) Modal** — Spring-animated gatekeeper pop-up shown on first visit to the public landing. Displays the official announcement title + a red "HIMBAUAN PASCA PENGUMUMAN" list. Persisted in `localStorage` under `skansagiri.integrityPact.agreed.v1`. Can be reset from the **Setup & Maintenance** tab.
+- **Share & Download (Result Card)** — After a successful lookup, the result card exposes three actions: **Unduh SKL (PDF)** triggers `window.print()` so the student can use the browser's native "Save as PDF" — the print stylesheet in `src/index.css` strips the navy hero, sticky navbar, motivation section, countdown band, and footer so only the result card prints on A4 portrait with `break-inside: avoid`. **Bagikan WhatsApp** opens `https://wa.me/?text=...` with a pre-formatted bold message (school name, NISN, class, major, status, portal URL) so the student can forward it to family in one tap. **Kembali** returns to the search form. Both share/print actions emit a toast for feedback.
 - **Admin Dashboard** — 5 tabs, all fully wired end-to-end:
   1. **Ringkasan Stat** — live KPI cards + passing-rate donut chart (driven by local stats).
   2. **Data Siswa** — searchable list with edit modal, export-to-Excel report (with summary sheet), and reset-tracking action. Empty-state CTA links to Import Center.
