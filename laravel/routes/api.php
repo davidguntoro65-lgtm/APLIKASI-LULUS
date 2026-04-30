@@ -45,6 +45,9 @@ Route::prefix('admin')->group(function () {
     Route::post('/settings', [AdminController::class, 'updateSettings']);
     Route::post('/import', [AdminController::class, 'importExcel']);
     Route::post('/reset-tracking/{id?}', [AdminController::class, 'resetTracking']);
+    // Realwork — purge entire students table (and import_archives) so the
+    // operator can hand the portal over to a fresh batch of TA 2025/2026 data.
+    Route::post('/students/purge', [AdminController::class, 'purgeStudents']);
 });
 
 /*

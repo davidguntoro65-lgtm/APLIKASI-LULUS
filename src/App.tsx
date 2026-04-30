@@ -502,6 +502,45 @@ export default function App() {
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [storageFootprint, setStorageFootprint] = useState<{ keys: { key: string; size: number }[]; totalKB: number }>({ keys: [], totalKB: 0 });
 
+  // Reusable confirmation modal — replaces native window.confirm() across
+  // every destructive action so the UX is on-brand, keyboard-accessible, and
+  // (for "danger" actions) can require the operator to type a confirmation
+  // phrase before the button activates.
+  type ConfirmRequest = {
+    title: string;
+    message: React.ReactNode;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    danger?: boolean;
+    requirePhrase?: string;            // if set, user must type this exact text
+    onConfirm: () => void | Promise<void>;
+  };
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
+  const [confirmInput, setConfirmInput] = useState("");
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const askConfirm = (req: ConfirmRequest) => {
+    setConfirmInput("");
+    setConfirmBusy(false);
+    setConfirmRequest(req);
+  };
+  const closeConfirm = () => {
+    if (confirmBusy) return;
+    setConfirmRequest(null);
+    setConfirmInput("");
+  };
+  const runConfirm = async () => {
+    if (!confirmRequest) return;
+    if (confirmRequest.requirePhrase && confirmInput !== confirmRequest.requirePhrase) return;
+    try {
+      setConfirmBusy(true);
+      await confirmRequest.onConfirm();
+    } finally {
+      setConfirmBusy(false);
+      setConfirmRequest(null);
+      setConfirmInput("");
+    }
+  };
+
   // Import center state — drives feedback under the dropzone
   const [importStatus, setImportStatus] = useState<
     | { kind: 'idle' }
@@ -916,44 +955,128 @@ export default function App() {
   };
 
   const handleClearAllLocal = () => {
-    if (!confirm('Hapus SEMUA data lokal (siswa, pengaturan, arsip, audit)? Tindakan ini tidak dapat dibatalkan.')) return;
-    clearAllLocal();
-    showToast('success', 'Semua data lokal telah dihapus.');
-    fetchStats();
-    fetchStudents();
-    fetchSettings();
-    refreshMaintenancePanels();
+    askConfirm({
+      title: 'Hapus Semua Data Lokal',
+      message: (
+        <>
+          Tindakan ini akan menghapus <strong>seluruh data siswa, pengaturan portal,
+          arsip impor, dan riwayat audit</strong> dari penyimpanan browser ini.
+          Operasi tidak dapat dibatalkan.
+        </>
+      ),
+      confirmLabel: 'Hapus Semua Lokal',
+      danger: true,
+      requirePhrase: 'HAPUS SEMUA',
+      onConfirm: () => {
+        clearAllLocal();
+        showToast('success', 'Semua data lokal telah dihapus.');
+        fetchStats();
+        fetchStudents();
+        fetchSettings();
+        refreshMaintenancePanels();
+      },
+    });
+  };
+
+  // Realwork: targeted purge of just the students table (+ import archives,
+  // because a restore would re-introduce the rows). Settings, audit, and the
+  // integrity pact are intentionally preserved so the operator does not lose
+  // headline / school name configuration during the production handover.
+  const handlePurgeStudents = () => {
+    const currentTotal = statsData.total;
+    askConfirm({
+      title: 'Hapus Semua Data Siswa',
+      message: (
+        <>
+          Saat ini terdapat <strong>{currentTotal} siswa</strong> di portal. Tindakan
+          ini akan <strong>menghapus seluruh data siswa beserta arsip impor</strong>
+          {' '}sehingga portal siap diisi data riil tahun ajaran 2025/2026.
+          Pengaturan portal (nama sekolah, headline, dll.) tetap aman.
+        </>
+      ),
+      confirmLabel: 'Hapus Semua Siswa',
+      danger: true,
+      requirePhrase: 'HAPUS SISWA',
+      onConfirm: async () => {
+        const result = await apiCall<{ removed: number; archives_removed: number }>(
+          '/api/admin/students/purge',
+          { method: 'POST' },
+          () => {
+            const r = studentStore.purgeAll();
+            return { success: true, data: { removed: r.removed, archives_removed: r.archivesRemoved } };
+          },
+        );
+        const removed = result?.data?.removed ?? 0;
+        const archivesRemoved = result?.data?.archives_removed ?? 0;
+        showToast(
+          'success',
+          `Berhasil menghapus ${removed} siswa${archivesRemoved ? ` dan ${archivesRemoved} arsip impor` : ''}.`,
+        );
+        fetchStats();
+        fetchStudents();
+        refreshMaintenancePanels();
+      },
+    });
   };
 
   const handleRestoreArchive = (id: number) => {
-    if (!confirm('Pulihkan arsip ini? Data siswa saat ini akan ditimpa dengan snapshot arsip.')) return;
-    if (archiveStore.restore(id)) {
-      showToast('success', 'Arsip berhasil dipulihkan.');
-      fetchStats();
-      fetchStudents(adminSearch);
-      refreshMaintenancePanels();
-    } else {
-      showToast('error', 'Arsip tidak ditemukan.');
-    }
+    askConfirm({
+      title: 'Pulihkan Arsip Impor',
+      message: (
+        <>
+          Data siswa saat ini akan <strong>ditimpa</strong> dengan snapshot arsip
+          ini. Pastikan Anda sudah men-download backup jika diperlukan.
+        </>
+      ),
+      confirmLabel: 'Pulihkan Arsip',
+      onConfirm: () => {
+        if (archiveStore.restore(id)) {
+          showToast('success', 'Arsip berhasil dipulihkan.');
+          fetchStats();
+          fetchStudents(adminSearch);
+          refreshMaintenancePanels();
+        } else {
+          showToast('error', 'Arsip tidak ditemukan.');
+        }
+      },
+    });
   };
 
   const handleDeleteArchive = (id: number) => {
-    if (!confirm('Hapus arsip impor ini secara permanen?')) return;
-    archiveStore.remove(id);
-    refreshMaintenancePanels();
-    showToast('success', 'Arsip dihapus.');
+    askConfirm({
+      title: 'Hapus Arsip Impor',
+      message: 'Arsip impor ini akan dihapus permanen dan tidak bisa dipulihkan.',
+      confirmLabel: 'Hapus Arsip',
+      danger: true,
+      onConfirm: () => {
+        archiveStore.remove(id);
+        refreshMaintenancePanels();
+        showToast('success', 'Arsip impor dihapus.');
+      },
+    });
   };
 
-  const handleResetTracking = async () => {
-    if (!confirm('Hapus semua riwayat pengecekan siswa?')) return;
-    await apiCall<any>('/api/admin/reset-tracking', { method: 'POST' }, () => {
-      studentStore.resetTracking();
-      return { success: true, message: 'Riwayat pengecekan dikosongkan.' };
+  const handleResetTracking = () => {
+    askConfirm({
+      title: 'Reset Riwayat Pengecekan',
+      message: (
+        <>
+          Seluruh penanda <em>"sudah dilihat"</em> pada data siswa akan dihapus.
+          Data identitas dan keputusan kelulusan tidak terpengaruh.
+        </>
+      ),
+      confirmLabel: 'Reset Riwayat',
+      onConfirm: async () => {
+        await apiCall<any>('/api/admin/reset-tracking', { method: 'POST' }, () => {
+          studentStore.resetTracking();
+          return { success: true, message: 'Riwayat pengecekan dikosongkan.' };
+        });
+        fetchStudents(adminSearch);
+        fetchStats();
+        refreshMaintenancePanels();
+        showToast('success', 'Riwayat pengecekan dikosongkan.');
+      },
     });
-    fetchStudents(adminSearch);
-    fetchStats();
-    refreshMaintenancePanels();
-    showToast('success', 'Riwayat pengecekan dikosongkan.');
   };
 
   if (view === 'login') {
@@ -1995,6 +2118,43 @@ export default function App() {
                     </button>
                   </div>
 
+                  {/* Zona Berbahaya — fokus pada penghapusan siswa saja
+                      (pengaturan portal tetap aman, ideal untuk handover ke
+                      data riil tahun ajaran 2025/2026). */}
+                  <div className="mt-6 p-6 rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50/40">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 mb-1">Zona Berbahaya</p>
+                        <h4 className="text-base font-extrabold text-[#111827] tracking-tight">Hapus Semua Data Siswa</h4>
+                        <p className="text-[12px] text-[#6B7280] font-medium mt-1.5 leading-relaxed">
+                          Menghapus seluruh tabel siswa beserta arsip impor dalam satu klik.
+                          Cocok dipakai sebelum mengunggah data riil <strong>{statsData.total > 0 ? `(saat ini ${statsData.total} siswa terdaftar)` : '(saat ini portal sudah kosong)'}</strong>.
+                          Pengaturan portal, audit log, dan pakta integritas <strong>tidak ikut terhapus</strong>.
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <button
+                            onClick={handlePurgeStudents}
+                            disabled={statsData.total === 0}
+                            className="px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border-b-4 border-rose-800 disabled:opacity-40 disabled:cursor-not-allowed disabled:border-rose-300"
+                          >
+                            <Trash2 size={14} />
+                            Hapus Semua Siswa
+                          </button>
+                          <button
+                            onClick={handleDownloadBackup}
+                            className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-slate-200"
+                          >
+                            <Download size={14} />
+                            Backup Dulu
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="mt-6 p-4 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB]">
                     <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-3">Rincian Penyimpanan</p>
                     {storageFootprint.keys.length === 0 ? (
@@ -2025,7 +2185,17 @@ export default function App() {
                       </div>
                     </div>
                     <button
-                      onClick={() => { auditLog.clear(); refreshMaintenancePanels(); showToast('success', 'Audit log dikosongkan.'); }}
+                      onClick={() => askConfirm({
+                        title: 'Hapus Audit Log',
+                        message: 'Riwayat aktivitas admin akan dikosongkan dan tidak bisa dipulihkan.',
+                        confirmLabel: 'Hapus Log',
+                        danger: true,
+                        onConfirm: () => {
+                          auditLog.clear();
+                          refreshMaintenancePanels();
+                          showToast('success', 'Audit log dikosongkan.');
+                        },
+                      })}
                       className="px-4 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center gap-2"
                     >
                       <Trash2 size={12} />
@@ -2080,6 +2250,102 @@ export default function App() {
                  toast.type === 'error'   ? <AlertTriangle size={18} /> :
                                             <Info size={18} />}
                 <p className="text-[12px] font-bold leading-snug">{toast.msg}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Reusable Confirmation Modal — used by every destructive action so
+              the operator gets a consistent, on-brand confirmation flow with
+              optional "type-the-phrase" gating for high-stakes operations. */}
+          <AnimatePresence>
+            {confirmRequest && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-[120] flex items-center justify-center p-4"
+                onClick={closeConfirm}
+              >
+                <motion.div
+                  initial={{ scale: 0.92, y: 20, opacity: 0 }}
+                  animate={{ scale: 1, y: 0, opacity: 1 }}
+                  exit={{ scale: 0.96, y: 10, opacity: 0 }}
+                  transition={{ type: 'spring', damping: 22, stiffness: 280 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="confirm-modal-title"
+                >
+                  <div className={`p-7 border-b border-slate-100 flex items-start gap-4 ${confirmRequest.danger ? 'bg-rose-50/60' : 'bg-[#EFF4FF]/60'}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${confirmRequest.danger ? 'bg-rose-100 text-rose-600' : 'bg-[#DBEAFE] text-[#1D4ED8]'}`}>
+                      {confirmRequest.danger ? <AlertTriangle size={22} /> : <Info size={22} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 id="confirm-modal-title" className="text-lg font-extrabold text-[#111827] tracking-tight leading-tight">
+                        {confirmRequest.title}
+                      </h3>
+                      <p className="text-[12px] text-[#6B7280] font-medium mt-1">
+                        Mohon pertimbangkan dengan saksama sebelum melanjutkan.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-7 space-y-5">
+                    <div className="text-[13px] text-[#374151] leading-relaxed font-medium">
+                      {confirmRequest.message}
+                    </div>
+                    {confirmRequest.requirePhrase && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-1">
+                          Ketik <code className="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded font-mono text-[11px] font-black">{confirmRequest.requirePhrase}</code> untuk konfirmasi
+                        </label>
+                        <input
+                          type="text"
+                          autoFocus
+                          autoComplete="off"
+                          spellCheck={false}
+                          value={confirmInput}
+                          onChange={(e) => setConfirmInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && confirmInput === confirmRequest.requirePhrase && !confirmBusy) {
+                              runConfirm();
+                            }
+                          }}
+                          placeholder={confirmRequest.requirePhrase}
+                          className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-rose-500 focus:outline-none text-[13px] font-mono font-bold tracking-wide bg-white"
+                        />
+                      </div>
+                    )}
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={closeConfirm}
+                        disabled={confirmBusy}
+                        className="flex-1 px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                      >
+                        {confirmRequest.cancelLabel ?? 'Batal'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={runConfirm}
+                        disabled={
+                          confirmBusy ||
+                          (!!confirmRequest.requirePhrase && confirmInput !== confirmRequest.requirePhrase)
+                        }
+                        className={`flex-1 px-5 py-3 rounded-xl text-white text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
+                          confirmRequest.danger
+                            ? 'bg-rose-600 hover:bg-rose-700 border-b-4 border-rose-800 disabled:border-rose-400'
+                            : 'bg-[#1D4ED8] hover:bg-[#1E40AF] border-b-4 border-[#1E3A8A] disabled:border-blue-400'
+                        }`}
+                      >
+                        {confirmBusy
+                          ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          : confirmRequest.danger ? <Trash2 size={14} /> : <CheckCircle size={14} />}
+                        {confirmRequest.confirmLabel ?? 'Konfirmasi'}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>

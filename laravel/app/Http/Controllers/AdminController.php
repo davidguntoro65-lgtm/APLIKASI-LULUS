@@ -273,4 +273,32 @@ class AdminController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Tracking data reset']);
     }
+
+    /**
+     * Realwork — wipe the students table (and import_archives, since a
+     * restore would re-introduce the rows). Settings, audit log, and the
+     * integrity pact are preserved so the operator does not lose portal
+     * configuration during the production handover. Returns the deleted
+     * counts so the frontend can render an exact confirmation message.
+     */
+    public function purgeStudents()
+    {
+        $removed = Student::query()->count();
+        Student::query()->delete();
+
+        $archivesRemoved = 0;
+        if (\Schema::hasTable('import_archives')) {
+            $archivesRemoved = \DB::table('import_archives')->count();
+            \DB::table('import_archives')->truncate();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Berhasil menghapus {$removed} siswa.",
+            'data' => [
+                'removed' => $removed,
+                'archives_removed' => $archivesRemoved,
+            ],
+        ]);
+    }
 }

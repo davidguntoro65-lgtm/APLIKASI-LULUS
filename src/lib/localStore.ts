@@ -350,6 +350,32 @@ export const studentStore = {
     if (isBrowser) window.localStorage.removeItem(K.seeded);
     audit.log({ actor: 'admin', action: 'students.clear' });
   },
+
+  /**
+   * Realwork-grade purge — wipes the students table, clears every import
+   * archive snapshot (otherwise a "Restore" would re-introduce dummy rows),
+   * and asserts the realwork purge flag so the seed-if-empty bootstrap can
+   * never accidentally re-seed demo records on the next page load.
+   *
+   * Returns the count of records that were removed so the UI can surface a
+   * concrete confirmation message ("Berhasil menghapus 124 siswa.").
+   */
+  purgeAll(): { removed: number; archivesRemoved: number } {
+    const before = readJSON<Student[]>(K.students, []);
+    const archivesBefore = readJSON<ImportArchive[]>(K.archives, []);
+    writeJSON(K.students, []);
+    writeJSON(K.archives, []);
+    if (isBrowser) {
+      window.localStorage.setItem(`${NS}.realwork_purged.v1`, '1');
+      window.localStorage.setItem(K.seeded, '1');
+    }
+    audit.log({
+      actor: 'admin',
+      action: 'students.purge_all',
+      meta: { removed: before.length, archives_removed: archivesBefore.length },
+    });
+    return { removed: before.length, archivesRemoved: archivesBefore.length };
+  },
 };
 
 /* ------------------------------------------------------------------ *
