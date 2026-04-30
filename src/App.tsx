@@ -3162,6 +3162,20 @@ export default function App() {
                               key={item.label}
                               className="quantum-countdown-box py-4 sm:py-5 px-1 flex flex-col items-center justify-center"
                             >
+                              {/* Tick spark layer — three tiny white particles
+                                  that rise + fade each time the digit value
+                                  changes. Remounted via `key={padded}` so the
+                                  CSS keyframes replay automatically. */}
+                              <span
+                                key={`spark-${padded}`}
+                                className="quantum-spark-layer"
+                                aria-hidden="true"
+                              >
+                                <span className="quantum-spark s1" />
+                                <span className="quantum-spark s2" />
+                                <span className="quantum-spark s3" />
+                              </span>
+
                               {/* `key` on the digit forces a remount each tick so the
                                   blur-in keyframes replay — gives the elegant
                                   morphing effect the spec asks for. */}
