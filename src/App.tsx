@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download, Lock, ShieldCheck, Activity, Sparkles, Quote } from 'lucide-react';
+import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download, Lock, ShieldCheck, Activity, Sparkles, Quote, AlertTriangle, Info, Megaphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -213,6 +213,43 @@ export default function App() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [justOpened, setJustOpened] = useState(false);
   const prevReadyRef = React.useRef(false);
+
+  // Integrity Pact (Pakta Integritas) State
+  const INTEGRITY_PACT_KEY = 'skansagiri.integrityPact.agreed.v1';
+  const [showIntegrityPact, setShowIntegrityPact] = useState(false);
+  const [pactChecked, setPactChecked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const agreed = window.localStorage.getItem(INTEGRITY_PACT_KEY) === '1';
+      if (!agreed) setShowIntegrityPact(true);
+    } catch {
+      setShowIntegrityPact(true);
+    }
+  }, []);
+
+  // Lock body scroll while pact modal is open
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (showIntegrityPact) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [showIntegrityPact]);
+
+  const handleAcceptIntegrityPact = () => {
+    if (!pactChecked) return;
+    try {
+      window.localStorage.setItem(INTEGRITY_PACT_KEY, '1');
+    } catch {
+      /* noop — modal will simply re-show next session */
+    }
+    setShowIntegrityPact(false);
+  };
 
   // Fetch Public Info
   const fetchPublicInfo = async () => {
@@ -1671,6 +1708,136 @@ export default function App() {
           </div>
         </section>
       )}
+
+      {/* Integrity Pact Modal — gatekeeper before students access the form */}
+      <AnimatePresence>
+        {view === 'public' && showIntegrityPact && (
+          <motion.div
+            key="integrity-pact-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/55 backdrop-blur-md no-print"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="integrity-pact-title"
+          >
+            <motion.div
+              key="integrity-pact-card"
+              initial={{ opacity: 0, scale: 0.9, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{
+                type: 'spring',
+                stiffness: 240,
+                damping: 22,
+                mass: 0.9,
+              }}
+              className="relative w-full max-w-xl bg-white rounded-2xl shadow-[0_40px_120px_-20px_rgba(15,23,42,0.45)] overflow-hidden border border-[#E5E7EB] max-h-[90vh] flex flex-col"
+            >
+              {/* Header */}
+              <div className="bg-[#1D4ED8] px-6 sm:px-8 py-5 flex items-center gap-3 text-white">
+                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                  <Megaphone size={20} className="text-white" strokeWidth={2.4} />
+                </div>
+                <div className="leading-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                    Pakta Integritas Siswa
+                  </p>
+                  <h3
+                    id="integrity-pact-title"
+                    className="text-base sm:text-lg font-extrabold tracking-tight"
+                  >
+                    Informasi Penting &amp; Himbauan
+                  </h3>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="px-6 sm:px-8 py-6 overflow-y-auto">
+                <div className="text-center mb-5">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EFF4FF] border border-[#DBEAFE]">
+                    <Info size={12} className="text-[#1D4ED8]" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[#1D4ED8]">
+                      Pengumuman Resmi
+                    </span>
+                  </div>
+                  <h4 className="mt-3 text-[15px] sm:text-base font-extrabold text-[#111827] tracking-tight leading-snug">
+                    PENGUMUMAN KELULUSAN<br />
+                    SMK NEGERI 1 WONOGIRI<br />
+                    TAHUN PELAJARAN 2025/2026
+                  </h4>
+                </div>
+
+                <div className="rounded-xl border border-red-100 bg-red-50/60 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle size={16} className="text-red-600" strokeWidth={2.4} />
+                    <p className="text-sm font-extrabold text-red-700 tracking-wide uppercase">
+                      Himbauan Pasca Pengumuman
+                    </p>
+                  </div>
+                  <ul className="space-y-2.5">
+                    {[
+                      'Dilarang melakukan corat-coret seragam atau fasilitas umum lainnya.',
+                      'Dilarang melakukan konvoi kendaraan bermotor yang mengganggu ketertiban.',
+                      'Dilarang berkumpul atau berkerumun yang berpotensi menimbulkan keributan.',
+                      'Dilarang melakukan tindakan melanggar hukum atau norma sosial.',
+                      'Menjaga nama baik almamater SMK Negeri 1 Wonogiri.',
+                    ].map((item, i) => (
+                      <li key={i} className="flex gap-2.5 text-[13px] leading-relaxed text-[#111827]">
+                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Footer / Checkbox + CTA (sticky, always visible) */}
+              <div className="px-6 sm:px-8 pt-4 pb-6 border-t border-[#F3F4F6] bg-white shrink-0">
+                <label
+                  htmlFor="integrity-pact-checkbox"
+                  className={`flex gap-3 items-start p-3.5 rounded-xl border cursor-pointer transition-colors ${
+                    pactChecked
+                      ? 'border-[#1D4ED8] bg-[#EFF4FF]'
+                      : 'border-[#E5E7EB] bg-[#F9FAFB] hover:border-[#DBEAFE] hover:bg-[#EFF4FF]/50'
+                  }`}
+                >
+                  <input
+                    id="integrity-pact-checkbox"
+                    type="checkbox"
+                    checked={pactChecked}
+                    onChange={(e) => setPactChecked(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[#1D4ED8] cursor-pointer shrink-0"
+                  />
+                  <span className="text-[12.5px] leading-relaxed text-[#111827] font-medium">
+                    Dengan ini saya menyatakan telah membaca, memahami, dan siap
+                    melaksanakan instruksi di atas secara sadar.
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleAcceptIntegrityPact}
+                  disabled={!pactChecked}
+                  className={`w-full quantum-button flex items-center justify-center gap-2.5 mt-4 transition-all ${
+                    !pactChecked ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <CheckCircle size={16} />
+                  Saya Setuju &amp; Lanjutkan
+                </button>
+                {!pactChecked && (
+                  <p className="text-[11px] text-center text-[#6B7280] font-medium mt-3">
+                    Centang pernyataan di atas terlebih dahulu untuk melanjutkan.
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Clean Modern Footer */}
       <footer className="px-6 md:px-12 py-8 bg-white border-t border-[#E5E7EB] flex flex-col sm:flex-row justify-between items-center gap-4 no-print">

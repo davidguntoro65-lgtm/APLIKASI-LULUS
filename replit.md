@@ -33,6 +33,10 @@ Frontend-only React + TypeScript single-page app built with Vite and Tailwind CS
 - `vite.config.ts` — Vite config (host `0.0.0.0`, port `5000`, `allowedHosts: true` for the Replit proxy)
 - `laravel/` — Reference-only PHP backend code (not executed)
 
+## Key Features
+
+- **Integrity Pact (Pakta Integritas) Modal** — Spring-animated gatekeeper pop-up shown on first visit to the public landing. Displays the official announcement title + a red "HIMBAUAN PASCA PENGUMUMAN" list (no graffiti, no convoys, no crowds, no unlawful acts, uphold school name). Cannot be dismissed without checking the agreement and clicking "Saya Setuju & Lanjutkan". Persisted in `localStorage` under `skansagiri.integrityPact.agreed.v1` so a refresh in the same session does not re-prompt.
+
 ## Replit Setup
 
 - **Workflow**: `Start application` runs `npm run dev` and serves the Vite dev server on port `5000` with `webview` output.
