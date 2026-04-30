@@ -14,12 +14,14 @@ import {
   studentStore,
   settingsStore,
   archiveStore,
+  galleryStore,
   audit as auditLog,
   localStoreFootprint,
   clearAllLocal,
   exportLocalSnapshot,
   type ImportArchive,
   type AuditEntry,
+  type GalleryItem,
 } from './lib/localStore';
 
 // Mock Data + Admin Stats
@@ -337,6 +339,13 @@ export default function App() {
   // Pengaturan tab. Conditional rendering downstream relies on this.
   const [motivationMessage, setMotivationMessage] = useState<string>("");
 
+  // Gallery — landing-page "Momen & Kegiatan SKANSAGIRI" marquee.
+  // The image_path on every row is either a base64 data URL (localStore
+  // fallback) or an absolute /storage/... URL coming from the Laravel API.
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const galleryInputRef = React.useRef<HTMLInputElement | null>(null);
+
   // Public Identity State
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -415,6 +424,21 @@ export default function App() {
       }
     }
     setIsBootstrapping(false);
+  };
+
+  /**
+   * Fetch the gallery items (used by both the public landing marquee and the
+   * admin "Galeri Sekolah" panel). Falls back to `galleryStore` when the
+   * Laravel API is unreachable.
+   */
+  const fetchGallery = async () => {
+    const json = await apiCall<GalleryItem[]>('/api/galleries', {}, () => ({
+      success: true,
+      data: galleryStore.list(),
+    }));
+    if (json.success && Array.isArray(json.data)) {
+      setGalleryItems(json.data);
+    }
   };
 
   // Countdown Interval Logic
@@ -636,9 +660,19 @@ export default function App() {
       fetchStats();
       fetchStudents(adminSearch);
       fetchSettings();
+      fetchGallery();
       refreshMaintenancePanels();
     }
   }, [view, adminSearch]);
+
+  // Public landing — load gallery once on first render so the marquee is
+  // ready by the time the user gets past the integrity pact modal.
+  useEffect(() => {
+    if (view === 'public') {
+      fetchGallery();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   // Handle Individual Update — apiCall, then localStore fallback.
   const handleUpdateStudent = async (e: React.FormEvent) => {
@@ -681,6 +715,139 @@ export default function App() {
       fr.onerror = () => reject(fr.error);
       fr.readAsDataURL(file);
     });
+
+  /**
+   * Crop & resize an image File to **exactly** 600×400 (3:2) using a hidden
+   * canvas with `object-fit: cover` semantics — same algorithm Intervention
+   * Image's `cover()` / `fit()` runs server-side, so the localStore fallback
+   * produces a marquee that's visually identical to the Laravel-backed one.
+   * Returns a JPEG data URL (~80% quality) keeping each image well under
+   * ~150 KB so the localStorage cap (5 MB) handles 30 photos comfortably.
+   */
+  const cropToGallerySize = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const TARGET_W = 600;
+      const TARGET_H = 400;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = TARGET_W;
+          canvas.height = TARGET_H;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            URL.revokeObjectURL(url);
+            return reject(new Error('Canvas 2D context unavailable.'));
+          }
+          // White backdrop in case the source has transparency (PNG / WebP).
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, TARGET_W, TARGET_H);
+          // Cover semantics — scale to fill, center-crop the overflow.
+          const srcRatio = img.width / img.height;
+          const dstRatio = TARGET_W / TARGET_H;
+          let sx = 0, sy = 0, sw = img.width, sh = img.height;
+          if (srcRatio > dstRatio) {
+            // Source is wider → crop horizontal sides
+            sw = Math.round(img.height * dstRatio);
+            sx = Math.round((img.width - sw) / 2);
+          } else if (srcRatio < dstRatio) {
+            // Source is taller → crop top/bottom
+            sh = Math.round(img.width / dstRatio);
+            sy = Math.round((img.height - sh) / 2);
+          }
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, TARGET_W, TARGET_H);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          reject(err);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Gambar tidak dapat dimuat.'));
+      };
+      img.src = url;
+    });
+
+  /** Admin — handle one or more photo uploads for the gallery marquee. */
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    const files: File[] = fileList ? Array.from(fileList) : [];
+    if (e.target) e.target.value = '';
+    if (!files.length) return;
+
+    setGalleryUploading(true);
+    let added = 0;
+    let failed = 0;
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        failed++;
+        continue;
+      }
+      try {
+        const dataUrl = await cropToGallerySize(file);
+        const formData = new FormData();
+        // Re-encode the cropped 600x400 JPEG back into a Blob so the Laravel
+        // controller receives an already-normalised file (Intervention Image
+        // will still re-cover() it as a final safety net).
+        const blob = await (await fetch(dataUrl)).blob();
+        formData.append('image', blob, file.name.replace(/\.[^.]+$/, '') + '.jpg');
+        formData.append('title', file.name.replace(/\.[^.]+$/, ''));
+
+        const json = await apiCall<GalleryItem>(
+          '/api/admin/galleries',
+          { method: 'POST', body: formData },
+          () => {
+            const created = galleryStore.add({
+              image_path: dataUrl,
+              title: file.name.replace(/\.[^.]+$/, ''),
+            });
+            return { success: true, data: created };
+          },
+        );
+
+        if (json.success) {
+          added++;
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    await fetchGallery();
+    setGalleryUploading(false);
+
+    if (added > 0) {
+      showToast('success', `${added} foto galeri berhasil diunggah${failed ? ` (${failed} gagal)` : ''}.`);
+    } else if (failed > 0) {
+      showToast('error', `Gagal mengunggah ${failed} foto. Pastikan file berupa gambar valid.`);
+    }
+  };
+
+  /** Admin — remove a single gallery photo. */
+  const handleGalleryRemove = async (id: number) => {
+    const json = await apiCall<{ id: number }>(
+      `/api/admin/galleries/${id}`,
+      { method: 'DELETE' },
+      () => {
+        galleryStore.remove(id);
+        return { success: true, data: { id } };
+      },
+    );
+    if (json.success) {
+      await fetchGallery();
+      showToast('success', 'Foto galeri dihapus.');
+    } else {
+      showToast('error', json.message || 'Gagal menghapus foto.');
+    }
+  };
 
   // Handle Excel Import — parse client-side via XLSX, archive snapshot, fall back to local store.
   const processImportFile = async (file: File) => {
@@ -2157,6 +2324,97 @@ export default function App() {
                       </div>
                    </div>
 
+                   {/* Galeri Sekolah — feeds the landing-page marquee */}
+                   <div className="pt-10 border-t border-[#E5E7EB]">
+                      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+                         <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 bg-[#0F172A] text-[#D4AF37] rounded-xl flex items-center justify-center">
+                               <FileSpreadsheet size={22} />
+                            </div>
+                            <div>
+                               <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Galeri Sekolah</h3>
+                               <p className="text-[12px] text-[#6B7280] font-normal">
+                                  Foto-foto kegiatan untuk marquee &ldquo;Momen &amp; Kegiatan SKANSAGIRI&rdquo; di halaman publik.
+                               </p>
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-semibold text-[#6B7280] px-3 py-1.5 rounded-full bg-[#F9FAFB] border border-[#E5E7EB]">
+                               {galleryItems.length} / 30 foto
+                            </span>
+                            <button
+                               type="button"
+                               onClick={() => galleryInputRef.current?.click()}
+                               disabled={galleryUploading || galleryItems.length >= 30}
+                               className="quantum-button px-4 py-2.5 text-[12px] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                               {galleryUploading ? (
+                                  <>
+                                     <RefreshCw size={14} className="animate-spin" />
+                                     Mengunggah...
+                                  </>
+                               ) : (
+                                  <>
+                                     <Download size={14} className="rotate-180" />
+                                     Unggah Foto
+                                  </>
+                               )}
+                            </button>
+                            <input
+                               ref={galleryInputRef}
+                               type="file"
+                               accept="image/png,image/jpeg,image/webp"
+                               multiple
+                               className="hidden"
+                               onChange={handleGalleryUpload}
+                            />
+                         </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                         <p className="text-[11px] text-[#6B7280] font-medium mb-4 flex items-center gap-2">
+                            <Info size={12} className="text-[#1D4ED8]" />
+                            Setiap foto otomatis dipotong ke ukuran <strong className="text-[#111827]">600 × 400 px (rasio 3:2)</strong> agar marquee tampil presisi tanpa distorsi.
+                         </p>
+
+                         {galleryItems.length === 0 ? (
+                            <div className="py-12 text-center">
+                               <div className="inline-flex w-14 h-14 rounded-2xl bg-white border border-[#E5E7EB] items-center justify-center mb-3">
+                                  <FileSpreadsheet size={24} className="text-[#9CA3AF]" />
+                               </div>
+                               <p className="text-sm font-bold text-[#111827] mb-1">Belum ada foto galeri</p>
+                               <p className="text-[12px] text-[#6B7280] max-w-sm mx-auto">
+                                  Unggah foto kegiatan sekolah — wisuda, perlombaan, kunjungan industri — untuk tampil di marquee halaman publik.
+                               </p>
+                            </div>
+                         ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                               {galleryItems.map((item) => (
+                                  <div key={item.id} className="relative group">
+                                     <div className="aspect-[3/2] rounded-xl overflow-hidden border border-[#E5E7EB] bg-white">
+                                        <img
+                                           src={resolveAssetUrl(item.image_path) || item.image_path}
+                                           alt={item.title || 'Foto galeri'}
+                                           className="w-full h-full object-cover"
+                                           loading="lazy"
+                                        />
+                                     </div>
+                                     <button
+                                        type="button"
+                                        onClick={() => handleGalleryRemove(item.id)}
+                                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-rose-600 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg hover:bg-rose-700"
+                                        title="Hapus foto"
+                                        aria-label={`Hapus foto ${item.title || item.id}`}
+                                     >
+                                        <Trash2 size={14} />
+                                     </button>
+                                  </div>
+                               ))}
+                            </div>
+                         )}
+                      </div>
+                   </div>
+
                    {/* Schedule */}
                    <div className="pt-10 border-t border-[#E5E7EB]">
                       <div className="flex items-center gap-3 mb-6">
@@ -3263,34 +3521,73 @@ export default function App() {
         </section>
       )}
 
-      {/* Premium Countdown Footer — Deep Navy band with Gold numbers */}
-      {!result && schoolInfo?.announcement_datetime && !isReady && (
-        <section className="premium-countdown px-4 sm:px-6 md:px-12 py-12 no-print">
-          <div className="max-w-5xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-[#D4AF37]/30 mb-4">
-              <Calendar size={12} className="text-[#D4AF37]" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37]">Hitung Mundur Pengumuman Resmi</span>
+      {/* ----------------------------------------------------------
+          Premium Gallery — "Momen & Kegiatan SKANSAGIRI"
+          Single-row infinite marquee, edge-faded, gold hover glow.
+          Renders on the public landing only and acts as the elegant
+          closer above the navy footer.
+          ---------------------------------------------------------- */}
+      {view === 'public' && (
+        <section className="premium-countdown px-4 sm:px-6 md:px-12 py-14 sm:py-16 no-print">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-[#D4AF37]/30 mb-4">
+                <Sparkles size={12} className="text-[#D4AF37]" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37]">Galeri Kegiatan</span>
+              </div>
+              <h3 className="font-serif-display text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                Momen &amp; Kegiatan <span className="text-[#D4AF37]">SKANSAGIRI</span>
+              </h3>
+              <p className="text-[13px] text-slate-400 max-w-xl mx-auto mt-3 font-medium">
+                Cuplikan kegiatan, prestasi, dan momen kebanggaan keluarga besar SMKN 1 Wonogiri.
+              </p>
             </div>
-            <h3 className="font-serif-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-8">
-              Pengumuman Kelulusan {schoolInfo?.school_name || 'SMKN 1 Wonogiri'}
-            </h3>
-            <div className="grid grid-cols-4 gap-3 sm:gap-5 max-w-3xl mx-auto">
-              {[
-                { label: 'HARI', value: countdown.days },
-                { label: 'JAM', value: countdown.hours },
-                { label: 'MENIT', value: countdown.minutes },
-                { label: 'DETIK', value: countdown.seconds },
-              ].map((item, i) => (
-                <div key={i} className="bg-white/[0.03] border border-[#D4AF37]/25 rounded-2xl py-6 sm:py-8">
-                  <p className="gold-number text-4xl sm:text-6xl font-extrabold quantum-pulse">
-                    {String(item.value).padStart(2, '0')}
-                  </p>
-                  <p className="text-[10px] sm:text-[11px] font-semibold text-white tracking-[0.28em] mt-2">
-                    {item.label}
-                  </p>
+
+            {galleryItems.length === 0 ? (
+              /* Elegant empty-state placeholder when admin hasn't uploaded yet */
+              <div className="gallery-fade-mask">
+                <div className="flex justify-center">
+                  <div className="w-full max-w-3xl aspect-[3/1] rounded-2xl border border-[#D4AF37]/25 bg-white/[0.03] flex items-center justify-center text-center px-6">
+                    <div>
+                      <p className="font-serif-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                        Gallery <span className="text-[#D4AF37]">SMKN 1 Wonogiri</span>
+                      </p>
+                      <p className="text-[12px] text-slate-400 mt-2 font-medium">
+                        Foto kegiatan akan tampil di sini begitu admin mengunggahnya.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="gallery-fade-mask overflow-hidden">
+                <div
+                  className="gallery-track gap-5"
+                  style={{
+                    /* Slow, linear marquee — duration scales with item count
+                       so adding more photos doesn't speed it up. */
+                    animationDuration: `${Math.max(28, galleryItems.length * 6)}s`,
+                  }}
+                >
+                  {/* Render the items twice back-to-back so the loop is seamless
+                      when transform: translateX(-50%) wraps. */}
+                  {[...galleryItems, ...galleryItems].map((item, i) => (
+                    <div
+                      key={`${item.id}-${i}`}
+                      className="gallery-card shrink-0 w-[260px] sm:w-[300px] aspect-[3/2] rounded-xl overflow-hidden border border-white/10 bg-white/[0.04]"
+                    >
+                      <img
+                        src={resolveAssetUrl(item.image_path) || item.image_path}
+                        alt={item.title || 'Foto kegiatan SKANSAGIRI'}
+                        className="w-full h-full object-cover block"
+                        loading="lazy"
+                        draggable={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       )}

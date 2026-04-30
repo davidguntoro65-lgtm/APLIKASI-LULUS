@@ -29,6 +29,7 @@ const K = {
   archives:  `${NS}.import_archives.v1`,
   audit:     `${NS}.audit_log.v1`,
   seeded:    `${NS}.seeded.v1`,
+  gallery:   `${NS}.gallery.v1`,
 };
 
 export type Student = {
@@ -78,6 +79,20 @@ export type AuditEntry = {
   action: string;
   target?: string | number;
   meta?: Record<string, unknown>;
+};
+
+/**
+ * Gallery photo — used by the public landing's "Momen & Kegiatan SKANSAGIRI"
+ * marquee. Every image is processed client-side (canvas crop to exactly 600x400)
+ * before being stored as a base64 data URL so the marquee keeps a perfectly
+ * uniform aspect ratio without any backend image-processing dependency.
+ */
+export type GalleryItem = {
+  id: number;
+  /** base64 data URL OR a backend-served absolute/relative path. */
+  image_path: string;
+  title: string;
+  created_at: string;
 };
 
 const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
@@ -464,6 +479,43 @@ export const archiveStore = {
 };
 
 /* ------------------------------------------------------------------ *
+ *  Gallery — landing-page marquee photos
+ * ------------------------------------------------------------------ */
+
+/**
+ * Realwork Mode: ships empty. The admin uploads real photos from
+ * Pengaturan → Galeri Sekolah; the public landing then renders an empty-state
+ * placeholder ("Gallery SMKN 1 Wonogiri") until at least one item exists.
+ */
+export const galleryStore = {
+  list(): GalleryItem[] {
+    return readJSON<GalleryItem[]>(K.gallery, []);
+  },
+  add(input: { image_path: string; title?: string }): GalleryItem {
+    const all = galleryStore.list();
+    const next: GalleryItem = {
+      id: (all[0]?.id ?? 0) + 1,
+      image_path: input.image_path,
+      title: (input.title ?? '').trim(),
+      created_at: nowIso(),
+    };
+    // Newest first, hard cap at 30 items (≈ 30 × ~120 KB JPEG = ~3.6 MB,
+    // safely under the localStorage quota on every modern browser).
+    writeJSON(K.gallery, [next, ...all].slice(0, 30));
+    audit.log({ actor: 'admin', action: 'gallery.add', target: next.id });
+    return next;
+  },
+  remove(id: number): void {
+    writeJSON(K.gallery, galleryStore.list().filter((g) => g.id !== id));
+    audit.log({ actor: 'admin', action: 'gallery.remove', target: id });
+  },
+  clear(): void {
+    writeJSON(K.gallery, []);
+    audit.log({ actor: 'admin', action: 'gallery.clear' });
+  },
+};
+
+/* ------------------------------------------------------------------ *
  *  Helpers
  * ------------------------------------------------------------------ */
 
@@ -588,6 +640,7 @@ export function exportLocalSnapshot(): string {
       students: studentStore.list(),
       settings: settingsStore.get(),
       archives: archiveStore.list(),
+      gallery: galleryStore.list(),
       audit: audit.list(),
     },
     null,

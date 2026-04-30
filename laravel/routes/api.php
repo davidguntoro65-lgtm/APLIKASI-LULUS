@@ -6,6 +6,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DeployController;
+use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\GraduationController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PublicController;
@@ -16,7 +17,10 @@ Route::post('/check-status', [GraduationController::class, 'checkStatus'])
     ->middleware('throttle:5,1');
 
 // Public School Info
-Route::get('/school-info', [PublicController::class, 'schoolInfo']);
+Route::get('/school-info',  [PublicController::class, 'schoolInfo']);
+
+// Public Gallery — feeds the landing-page "Momen & Kegiatan SKANSAGIRI" marquee.
+Route::get('/galleries',    [GalleryController::class, 'index']);
 
 /*
 |--------------------------------------------------------------------------
@@ -51,6 +55,15 @@ Route::prefix('admin')->group(function () {
     // Bulk-action endpoints used by the Data Siswa toolbar (multi-select).
     Route::post('/students/bulk-delete', [AdminController::class, 'bulkDeleteStudents']);
     Route::post('/students/bulk-status', [AdminController::class, 'bulkSetStatus']);
+
+    // Gallery CRUD — every upload is normalised to 600x400 by Intervention
+    // Image inside the controller, so the SPA marquee gets a perfectly
+    // uniform aspect ratio for every row in the database.
+    Route::prefix('galleries')->group(function () {
+        Route::post('/',           [GalleryController::class, 'store']);
+        Route::delete('/{id}',     [GalleryController::class, 'destroy']);
+        Route::post('/clear',      [GalleryController::class, 'clear']);
+    });
 });
 
 /*
