@@ -576,14 +576,21 @@ export function resolveApiUrl(path: string): string {
 }
 
 /**
- * Fetch wrapper that **gracefully** falls back to the local store if the API
- * isn't reachable / returns a non-JSON response (e.g. the dev server's HTML
- * 404 page) / returns an HTTP error.
+ * MODE ONLINE TOTAL — security/operational requirement.
  *
- * `localFallback` is invoked only when the real API failed. The UI sees the
- * same JSON envelope `{ success, data?, message? }` regardless of which
- * branch executed, so it doesn't need any conditional logic.
+ * When `ONLINE_ONLY` is `true`, the localStorage fallback is **disabled**:
+ * the SPA only accepts data from the backend API. If the API is unreachable
+ * the call resolves to `{ success: false }` and the UI surfaces an error
+ * instead of silently writing to localStorage. This is what makes the
+ * "Status Backend" health card flip to **Terhubung (Online)** — the call to
+ * `/api/deploy/health` now reaches the real Express backend, so
+ * `_fromLocal === false` is the steady state.
+ *
+ * Flip this back to `false` if you ever want to re-enable the offline-first
+ * cPanel fallback path that the original Realwork build shipped with.
  */
+const ONLINE_ONLY = true;
+
 export async function apiCall<T = any>(
   url: string,
   init: RequestInit = {},
@@ -595,10 +602,23 @@ export async function apiCall<T = any>(
     if (!ct.includes('application/json')) throw new Error('non-json');
     const json = await resp.json();
     if (!resp.ok) throw Object.assign(new Error('api'), { json });
-    return json;
-  } catch {
-    if (!localFallback) {
-      return { success: false, message: 'API tidak tersedia.' };
+    return { ...json, _fromLocal: false };
+  } catch (err: any) {
+    // If the API responded with a structured JSON error, surface that message
+    // directly — this is a server-side validation/business error, NOT a
+    // connectivity failure, so the backend is reachable (`_fromLocal: false`).
+    if (err?.json) {
+      return { ...(err.json as object), _fromLocal: false };
+    }
+    if (ONLINE_ONLY || !localFallback) {
+      // True network failure — backend is unreachable. Mark `_fromLocal: true`
+      // so the health card honestly reports "Tidak Terhubung" instead of
+      // misleadingly showing "Online".
+      return {
+        success: false,
+        message: 'Backend tidak dapat dihubungi. Pastikan server sedang berjalan.',
+        _fromLocal: true,
+      };
     }
     const local = localFallback();
     return { ...local, _fromLocal: true };

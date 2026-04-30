@@ -3065,14 +3065,11 @@ export default function App() {
             <Calendar size={12} className="text-[#D4AF37]" />
             <p className="text-[11px] font-semibold text-slate-200">TA 2025 / 2026</p>
           </div>
-          <button
-            onClick={() => navigateTo(ROUTE_LOGIN)}
-            className="ghost-on-dark"
-            title="Login Panel Admin"
-          >
-            <Lock size={12} />
-            <span className="hidden sm:inline">Admin Login</span>
-          </button>
+          {/*
+            Public navbar deliberately exposes NO admin entry point. The admin
+            panel is reachable only by typing /panel-admin in the URL bar
+            (stealth route preservation — security requirement).
+          */}
         </div>
       </header>
 
@@ -3855,13 +3852,10 @@ export default function App() {
           <p className="text-xs font-semibold text-white">
             © 2026 {schoolInfo?.school_name || "SMKN 1 Wonogiri"}
           </p>
-          <button
-            onClick={() => navigateTo(ROUTE_LOGIN)}
-            className="text-[11px] font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/15 hover:border-[#D4AF37]/40 hover:bg-white/5"
-          >
-            <LayoutDashboard size={11} />
-            Portal Admin
-          </button>
+          {/*
+            Public footer also omits the admin shortcut. The /panel-admin
+            route remains active and reachable by direct URL entry only.
+          */}
         </div>
         <p className="text-[11px] text-slate-400 font-medium">
           Created by: <span className="text-slate-300 font-semibold">TIM IT Skansagiri</span>

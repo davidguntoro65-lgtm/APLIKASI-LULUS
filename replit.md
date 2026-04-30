@@ -4,9 +4,13 @@ Sistem informasi pengumuman kelulusan siswa SMKN 1 Wonogiri Tahun Pelajaran 2025
 
 ## Project Type
 
-Frontend-only React + TypeScript single-page app built with Vite and Tailwind CSS v4. The repository also contains a `laravel/` directory with reference PHP controllers, models, migrations, and routes that document the intended backend API shape, but no Laravel runtime is installed or wired up.
+Full-stack app: React + TypeScript SPA (Vite, Tailwind v4) on the frontend and an **Express + tsx backend** on the same port (5000) for the JSON API. The original `laravel/` directory remains as the reference / cPanel-portable backend, but the active runtime in Replit is the Node/Express server in `server/`.
 
-The app is **fully functional standalone**: a localStorage-backed store (`src/lib/localStore.ts`) transparently substitutes for the API whenever requests fail, so every admin operation — input, edit, save, import (Excel), archive, restore, reporting — works without a backend. When the Laravel API is reachable (e.g. on cPanel), `apiCall()` uses the real endpoint instead. The UI is identical in both modes; an amber banner appears when the local fallback is active.
+### Mode Online Total (current default)
+
+`src/lib/localStore.ts` exports a `ONLINE_ONLY` flag that **disables the localStorage fallback** in `apiCall()`. The SPA only accepts data from the backend; if the API is unreachable the call resolves with `{ success:false, _fromLocal:true }` and the UI surfaces an error instead of silently writing to localStorage. The "Status Backend" health card in the Setup tab therefore shows **Terhubung (Online)** as long as the Express server is up, and **Tidak Terhubung (Mode Lokal)** if it is not.
+
+Flip `ONLINE_ONLY` back to `false` if you want to re-enable the offline-first cPanel fallback path.
 
 ## Realwork Mode (Production Sanitization)
 
@@ -98,10 +102,17 @@ The portal was rebranded from "Quantum Modern Blue" to a darker, more authoritat
 
 ## Replit Setup
 
-- **Workflow**: `Start application` runs `npm run dev` and serves the Vite dev server on port `5000` with `webview` output.
-- **Vite config**: bound to `0.0.0.0:5000` with `allowedHosts: true` so the Replit iframe proxy can reach it.
-- **Deployment**: configured as a `static` deployment — `npm run build` outputs to `dist/`.
+- **Workflow**: `Start application` runs `npm run dev` which executes `tsx server/index.ts`. The Express server boots on `0.0.0.0:5000`, mounts `/api/*` for the backend, mounts `/uploads/*` for static file uploads (logos, principal photos, gallery photos), then attaches Vite in **middleware mode** so the SPA + HMR are served on the same port. One process, one port — no proxy.
+- **Backend layout**: `server/index.ts` (entry), `server/routes.ts` (all `/api/*` handlers), `server/db.ts` (JSON-file persistence at `server/data.json` with auto-migrate on boot).
+- **API contract**: matches the Laravel reference 1:1 — `{ success, data?, message? }` envelope, same routes, same field names.
+- **Built-in admin (unchanged)**: `jobenapp` / `081460081343`. Verified via `crypto.timingSafeEqual` in `LoginController` equivalent inside `server/routes.ts`. Mirror constants live in `src/App.tsx`.
+- **Stealth admin route**: `/panel-admin` is reachable by typing the URL directly. The public navbar and footer expose **no visible link or button** to the admin login — that was an explicit security requirement (April 2026).
+- **APP_URL**: derived at runtime from the incoming request host inside `/api/deploy/health`, so the same build works on Replit dev, Replit deploy, cPanel, or a custom domain. Override with `APP_URL=...` in environment variables when an absolute URL is required for server-rendered responses.
+- **Deployment**: previously configured as `static`. Should now be reconfigured as a `vm`/server deployment so the Express backend runs in production. Build: `npm run build`. Start: `NODE_ENV=production npm run start`.
 
 ## Environment Variables
 
-- `GEMINI_API_KEY` (optional) — passed through `vite.config.ts` into `process.env.GEMINI_API_KEY` for the bundled client. Not required for the app to render.
+- `PORT` (optional, default `5000`).
+- `APP_URL` (optional). When unset, server responses use the request host.
+- `DEPLOY_TOKEN` (optional). Token gating `/api/deploy/setup`. Leave unset to disable that endpoint.
+- `GEMINI_API_KEY` (optional, unused at runtime today). Passed through `vite.config.ts` into `process.env.GEMINI_API_KEY` for the bundled client.
