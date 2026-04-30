@@ -211,6 +211,8 @@ export default function App() {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [isReady, setIsReady] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [justOpened, setJustOpened] = useState(false);
+  const prevReadyRef = React.useRef(false);
 
   // Fetch Public Info
   const fetchPublicInfo = async () => {
@@ -260,6 +262,17 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, [schoolInfo]);
+
+  // Fire a one-time celebratory pulse the instant the countdown unlocks the form
+  useEffect(() => {
+    if (isReady && !prevReadyRef.current) {
+      setJustOpened(true);
+      const t = setTimeout(() => setJustOpened(false), 2200);
+      prevReadyRef.current = true;
+      return () => clearTimeout(t);
+    }
+    prevReadyRef.current = isReady;
+  }, [isReady]);
 
   useEffect(() => {
     fetchPublicInfo();
@@ -1236,6 +1249,40 @@ export default function App() {
               <div className="relative">
                 {/* Soft halo behind card */}
                 <div className="absolute -inset-6 bg-gradient-to-tr from-[#DBEAFE]/60 via-white to-[#EFF4FF]/40 rounded-[32px] blur-2xl -z-10" />
+
+                {/* One-time celebratory ring when countdown reaches zero */}
+                <AnimatePresence>
+                  {justOpened && (
+                    <>
+                      <motion.div
+                        key="open-ring-1"
+                        initial={{ opacity: 0.55, scale: 0.96 }}
+                        animate={{ opacity: 0, scale: 1.18 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
+                        className="pointer-events-none absolute inset-0 rounded-2xl border-2 border-[#1D4ED8] -z-10"
+                        style={{ boxShadow: '0 0 0 6px rgba(29, 78, 216, 0.18), 0 0 60px 8px rgba(29, 78, 216, 0.30)' }}
+                      />
+                      <motion.div
+                        key="open-ring-2"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 0, scale: 1.32 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 2.0, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                        className="pointer-events-none absolute inset-0 rounded-2xl border border-[#60A5FA] -z-10"
+                      />
+                      <motion.div
+                        key="open-glow"
+                        initial={{ opacity: 0.6 }}
+                        animate={{ opacity: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.4, ease: 'easeOut' }}
+                        className="pointer-events-none absolute -inset-3 rounded-[28px] -z-10"
+                        style={{ background: 'radial-gradient(ellipse at center, rgba(29,78,216,0.28) 0%, rgba(29,78,216,0) 70%)' }}
+                      />
+                    </>
+                  )}
+                </AnimatePresence>
 
                 <motion.div
                   initial={{ opacity: 0, x: 32, y: 12 }}
