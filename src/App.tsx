@@ -3149,24 +3149,39 @@ export default function App() {
                       <h2 className="text-2xl sm:text-[26px] font-extrabold text-[#111827] tracking-tight mb-1.5">Pengumuman Segera Dibuka</h2>
                       <p className="text-[#6B7280] text-sm mb-8">Silakan menunggu waktu rilis resmi.</p>
 
-                      <div className="grid grid-cols-4 gap-2.5 mb-8">
+                      <div className="grid grid-cols-4 gap-2.5 sm:gap-3 mb-8">
                         {[
                           { label: 'HARI', value: countdown.days },
                           { label: 'JAM', value: countdown.hours },
                           { label: 'MENIT', value: countdown.minutes },
                           { label: 'DETIK', value: countdown.seconds },
-                        ].map((item, i) => (
-                          <div key={i} className="bg-[#0F172A] py-4 rounded-xl border border-[#D4AF37]/30">
-                            <p className="gold-number text-3xl sm:text-4xl font-extrabold quantum-pulse">
-                              {String(item.value).padStart(2, '0')}
-                            </p>
-                            <p className="text-[9px] font-semibold text-white/70 tracking-[0.22em] mt-1.5">{item.label}</p>
-                          </div>
-                        ))}
+                        ].map((item) => {
+                          const padded = String(item.value).padStart(2, '0');
+                          return (
+                            <div
+                              key={item.label}
+                              className="quantum-countdown-box py-4 sm:py-5 px-1 flex flex-col items-center justify-center"
+                            >
+                              {/* `key` on the digit forces a remount each tick so the
+                                  blur-in keyframes replay — gives the elegant
+                                  morphing effect the spec asks for. */}
+                              <p
+                                key={padded}
+                                className="quantum-countdown-digit text-3xl sm:text-4xl leading-none"
+                              >
+                                {padded}
+                              </p>
+                              <p className="quantum-countdown-label text-[9px] mt-2">
+                                {item.label}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
 
-                      <div className="p-4 bg-[#0F172A]/[0.04] rounded-xl border border-[#0F172A]/15">
-                        <p className="text-[11px] font-medium text-[#1A1A1A] leading-relaxed">
+                      {/* Himbauan card — minimalist white below the gradient grid */}
+                      <div className="px-4 py-3 bg-white rounded-xl border border-[#E5E7EB] shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                        <p className="text-[11px] font-medium text-[#475569] leading-relaxed">
                           Formulir pencarian akan otomatis terbuka secara real-time
                           saat hitung mundur mencapai angka nol.
                         </p>
