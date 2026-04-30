@@ -8,6 +8,18 @@ Frontend-only React + TypeScript single-page app built with Vite and Tailwind CS
 
 The app is **fully functional standalone**: a localStorage-backed store (`src/lib/localStore.ts`) transparently substitutes for the API whenever requests fail, so every admin operation — input, edit, save, import (Excel), archive, restore, reporting — works without a backend. When the Laravel API is reachable (e.g. on cPanel), `apiCall()` uses the real endpoint instead. The UI is identical in both modes; an amber banner appears when the local fallback is active.
 
+## Realwork Mode (Production Sanitization)
+
+The repo ships in **Realwork Mode** — no dummy data, no placeholder content:
+
+- **Students table starts empty.** The previous demo seed of 8 fictional students has been removed (`SEED_STUDENTS` is now `[]` in `src/lib/localStore.ts`). On first boot a one-time migration flag (`skansagiri.realwork_purged.v1`) wipes any leftover demo records from earlier builds so existing browsers also start clean.
+- **Settings start blank.** `DEFAULT_SETTINGS` in `src/lib/localStore.ts` keeps only `school_name: 'SMKN 1 Wonogiri'`; every other field (NPSN, address, principal name, principal photo, motivation message, announcement date/time, headline) is empty. The Laravel reference seeder (`laravel/database/seeders/AppSettingsSeeder.php`) mirrors this.
+- **Dynamic headline.** The landing-page H1 reads `schoolInfo?.headline ?? "Portal Kelulusan Online <school_name> TA 2025/2026"` — there is an editable "Headline Halaman Depan" input in the Pengaturan tab. The `headline` field is whitelisted in `Setting::ALLOWED_KEYS` and validated by `AdminController::updateSettings`.
+- **Conditional motivation section.** The "Sambutan Kepala Sekolah" block on the landing page only renders when `motivationMessage` is non-empty. Combined with the empty default, the section is fully hidden until an admin enters a real message.
+- **MOCK_STUDENTS removed.** What used to be a hardcoded array of two fictional students is now a pure TypeScript type alias (`StudentResult`) so the production bundle ships zero placeholder records while preserving compile-time type checks.
+- **Production env defaults.** `laravel/.env.example` already ships with `APP_ENV=production` and `APP_DEBUG=false`. The PublicController returns empty strings (instead of dummy demo strings) when settings rows are missing, so the React fallbacks decide what to render.
+- **Storage symlink is automated.** `App\Providers\AppServiceProvider::ensureStorageSymlink()` creates `public/storage` on every boot (with a recursive-copy fallback when the host forbids `symlink()`); the admin Setup tab also exposes the token-protected `/api/deploy/setup` endpoint that runs `migrate --force` + `storage:link` + cache clears in one click.
+
 ## Multi-Domain / Portability
 
 The app is deliberately built to be **drop-in portable** between Replit, cPanel shared hosting, and custom domains — no source edits required when migrating.

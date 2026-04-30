@@ -49,6 +49,7 @@ export type Settings = {
   announcement_date: string;
   announcement_time: string;
   maintenance_mode: boolean;
+  headline: string;                  // landing-page headline (dynamic, admin-editable)
   school_name: string;
   school_npsn: string;
   school_address: string;
@@ -132,18 +133,25 @@ export const audit = {
  *  Settings
  * ------------------------------------------------------------------ */
 
+/**
+ * Realwork Mode — production defaults.
+ *
+ * Only the basic school identity (name) and an empty logo slot are kept.
+ * Every other field starts blank so the admin must enter real, current data
+ * from the Pengaturan tab before the portal is operational.
+ */
 const DEFAULT_SETTINGS: Settings = {
-  announcement_date: '2026-05-15',
-  announcement_time: '16:00',
+  announcement_date: '',
+  announcement_time: '',
   maintenance_mode: false,
+  headline: '',
   school_name: 'SMKN 1 Wonogiri',
-  school_npsn: '20311234',
-  school_address: 'Jl. Jend. Sudirman No. 123, Wonogiri',
-  principal_name: 'Drs. Supriyanto, M.Pd.',
+  school_npsn: '',
+  school_address: '',
+  principal_name: '',
   school_logo: null,
   principal_photo: null,
-  motivation_message:
-    'Selamat kepada seluruh siswa-siswi SMKN 1 Wonogiri. Teruslah berkarya, berinovasi, dan menjadi generasi unggul yang membanggakan.',
+  motivation_message: '',
 };
 
 export const settingsStore = {
@@ -167,35 +175,30 @@ export const settingsStore = {
  *  Students CRUD
  * ------------------------------------------------------------------ */
 
-const SEED_STUDENTS: Omit<Student, 'id' | 'viewed_at' | 'created_at' | 'updated_at'>[] = [
-  { nisn: '0089201001', name: 'AHMAD SAEFUL HIDAYAT',     birth_place: 'Wonogiri',   birth_date: '2008-05-26', class: 'XII RPL 1', major: 'Rekayasa Perangkat Lunak',          status_graduation: 1 },
-  { nisn: '0089201002', name: 'SITI RAHMAWATI',           birth_place: 'Sukoharjo',  birth_date: '2008-08-20', class: 'XII TKJ 2', major: 'Teknik Komputer & Jaringan',        status_graduation: 1 },
-  { nisn: '0089201003', name: 'BAGAS ARIO WIBOWO',        birth_place: 'Wonogiri',   birth_date: '2008-02-14', class: 'XII MM 1',  major: 'Multimedia',                        status_graduation: 1 },
-  { nisn: '0089201004', name: 'RINI PUTRI WULANDARI',     birth_place: 'Klaten',     birth_date: '2008-11-09', class: 'XII AKL 1', major: 'Akuntansi & Keuangan Lembaga',      status_graduation: 1 },
-  { nisn: '0089201005', name: 'DIMAS PRATAMA',            birth_place: 'Wonogiri',   birth_date: '2008-03-30', class: 'XII RPL 2', major: 'Rekayasa Perangkat Lunak',          status_graduation: 0 },
-  { nisn: '0089201006', name: 'NOVITA ANGGRAENI',         birth_place: 'Wonogiri',   birth_date: '2008-07-04', class: 'XII OTKP 1',major: 'Otomatisasi & Tata Kelola Perkantoran', status_graduation: 1 },
-  { nisn: '0089201007', name: 'YUSUF FERDIAN',            birth_place: 'Pacitan',    birth_date: '2007-12-12', class: 'XII TKJ 1', major: 'Teknik Komputer & Jaringan',        status_graduation: 1 },
-  { nisn: '0089201008', name: 'AISYAH NUR FITRIANI',      birth_place: 'Wonogiri',   birth_date: '2008-09-18', class: 'XII BDP 1', major: 'Bisnis Daring & Pemasaran',         status_graduation: 1 },
-];
+/**
+ * Realwork Mode — no dummy seed.
+ *
+ * The students table starts empty in production. Real data is loaded by the
+ * admin via the Import Center (Excel upload). Any pre-existing local seed
+ * from earlier dev/demo runs is purged automatically on first boot below.
+ */
+const SEED_STUDENTS: Omit<Student, 'id' | 'viewed_at' | 'created_at' | 'updated_at'>[] = [];
 
 function seedIfEmpty(): void {
   if (!isBrowser) return;
-  if (window.localStorage.getItem(K.seeded) === '1') return;
-  const existing = readJSON<Student[]>(K.students, []);
-  if (existing.length > 0) {
-    window.localStorage.setItem(K.seeded, '1');
-    return;
+  // One-time purge: if the legacy seed flag is still set, wipe any leftover
+  // dummy records from earlier builds so the live portal starts clean.
+  const purgeFlag = `${NS}.realwork_purged.v1`;
+  if (window.localStorage.getItem(purgeFlag) !== '1') {
+    window.localStorage.removeItem(K.students);
+    window.localStorage.removeItem(K.seeded);
+    window.localStorage.setItem(purgeFlag, '1');
+    audit.log({ actor: 'system', action: 'students.realwork_purge' });
   }
-  const seeded: Student[] = SEED_STUDENTS.map((s, i) => ({
-    ...s,
-    id: i + 1,
-    viewed_at: null,
-    created_at: nowIso(),
-    updated_at: nowIso(),
-  }));
-  writeJSON(K.students, seeded);
-  window.localStorage.setItem(K.seeded, '1');
-  audit.log({ actor: 'system', action: 'students.seed', meta: { count: seeded.length } });
+  // Mark as "seeded" so subsequent loads skip this block entirely.
+  if (window.localStorage.getItem(K.seeded) !== '1') {
+    window.localStorage.setItem(K.seeded, '1');
+  }
 }
 
 export const studentStore = {

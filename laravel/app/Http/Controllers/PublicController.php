@@ -29,34 +29,56 @@ class PublicController extends Controller
     public function schoolInfo()
     {
         $settings = Setting::all()->pluck('value', 'key');
-        $date = $settings['announcement_date'] ?? '2026-05-15';
-        $time = $settings['announcement_time'] ?? '16:00';
-        $fullDatetime = "$date $time";
+
+        // Realwork Mode — empty defaults; the React layer applies its own
+        // "Portal Kelulusan Online <school_name> TA 2025/2026" fallback when
+        // `headline` is blank, and conditionally hides the principal /
+        // motivation block when those fields are empty.
+        $date = $settings['announcement_date'] ?? '';
+        $time = $settings['announcement_time'] ?? '';
+        $fullDatetime = trim($date . ' ' . $time);
+
+        $announcementIso    = '';
+        $announcementActive = false;
+        if ($fullDatetime !== '') {
+            try {
+                $parsed             = \Carbon\Carbon::parse($fullDatetime);
+                $announcementIso    = $parsed->toIso8601String();
+                $announcementActive = $parsed->isPast();
+            } catch (\Throwable $e) {
+                /* leave defaults — invalid date in DB shouldn't 500 */
+            }
+        }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'school_name'           => $settings['school_name']    ?? 'SMKN 1 Wonogiri',
-                'school_npsn'           => $settings['school_npsn']    ?? '20311234',
-                'school_address'        => $settings['school_address'] ?? 'Jl. Jend. Sudirman No. 123, Wonogiri',
+                'headline'              => $settings['headline']           ?? '',
+                'school_name'           => $settings['school_name']        ?? 'SMKN 1 Wonogiri',
+                'school_npsn'           => $settings['school_npsn']        ?? '',
+                'school_address'        => $settings['school_address']     ?? '',
                 'school_logo'           => Setting::publicUrl($settings['school_logo']     ?? null),
-                'principal_name'        => $settings['principal_name'] ?? 'Drs. Supriyanto, M.Pd.',
+                'principal_name'        => $settings['principal_name']     ?? '',
                 'principal_photo'       => Setting::publicUrl($settings['principal_photo'] ?? null),
-                'motivation_message'    => $settings['motivation_message']
-                    ?? 'Selamat kepada seluruh siswa-siswi SMKN 1 Wonogiri. Teruslah berkarya, berinovasi, dan menjadi generasi unggul yang membanggakan.',
-                'announcement_datetime' => \Carbon\Carbon::parse($fullDatetime)->toIso8601String(),
-                'announcement_active'   => \Carbon\Carbon::parse($fullDatetime)->isPast(),
-                'maintenance_mode'      => ($settings['maintenance_mode'] ?? '0') == '1',
+                'motivation_message'    => $settings['motivation_message'] ?? '',
+                'announcement_datetime' => $announcementIso,
+                'announcement_active'   => $announcementActive,
+                'maintenance_mode'      => ($settings['maintenance_mode']  ?? '0') == '1',
             ]
         ]);
     }
 
     private function isAnnouncementActive($settings)
     {
-        $date = $settings['announcement_date'] ?? '2026-05-15';
-        $time = $settings['announcement_time'] ?? '16:00';
+        $date = $settings['announcement_date'] ?? '';
+        $time = $settings['announcement_time'] ?? '';
+        if ($date === '' || $time === '') return false;
 
-        $releaseDate = \Carbon\Carbon::parse("$date $time");
-        return now()->greaterThanOrEqualTo($releaseDate);
+        try {
+            $releaseDate = \Carbon\Carbon::parse("$date $time");
+            return now()->greaterThanOrEqualTo($releaseDate);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

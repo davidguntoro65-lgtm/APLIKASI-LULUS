@@ -132,19 +132,24 @@ class AdminController extends Controller
     {
         $settings = Setting::all()->pluck('value', 'key');
 
+        // Realwork Mode — return empty strings for unset fields so the React
+        // layer can apply its own dynamic fallback (`settings?.headline || ...`)
+        // and the conditional renderers (motivation section, principal photo)
+        // hide cleanly when the admin has not entered real data yet.
         return response()->json([
             'success' => true,
             'data' => [
-                'announcement_date'   => $settings['announcement_date']   ?? '2026-05-15',
-                'announcement_time'   => $settings['announcement_time']   ?? '16:00',
+                'announcement_date'   => $settings['announcement_date']   ?? '',
+                'announcement_time'   => $settings['announcement_time']   ?? '',
                 'maintenance_mode'    => ($settings['maintenance_mode']   ?? '0') == '1',
+                'headline'            => $settings['headline']            ?? '',
                 'school_name'         => $settings['school_name']         ?? 'SMKN 1 Wonogiri',
-                'school_npsn'         => $settings['school_npsn']         ?? '20311234',
-                'school_address'      => $settings['school_address']      ?? 'Jl. Jend. Sudirman No. 123, Wonogiri',
-                'principal_name'      => $settings['principal_name']      ?? 'Drs. Supriyanto, M.Pd.',
+                'school_npsn'         => $settings['school_npsn']         ?? '',
+                'school_address'      => $settings['school_address']      ?? '',
+                'principal_name'      => $settings['principal_name']      ?? '',
                 'school_logo'         => $settings['school_logo']         ?? null,
                 'principal_photo'     => $settings['principal_photo']     ?? null,
-                'motivation_message'  => $settings['motivation_message']  ?? 'Selamat kepada seluruh siswa-siswi SMKN 1 Wonogiri. Teruslah berkarya, berinovasi, dan menjadi generasi unggul yang membanggakan.',
+                'motivation_message'  => $settings['motivation_message']  ?? '',
             ]
         ]);
     }
@@ -171,6 +176,7 @@ class AdminController extends Controller
             $validated = $request->validate([
                 'announcement_date'    => 'nullable|date',
                 'announcement_time'    => 'nullable|string',
+                'headline'             => 'nullable|string|max:255',
                 'school_name'          => 'nullable|string|max:255',
                 'school_npsn'          => 'nullable|string|max:32',
                 'school_address'       => 'nullable|string|max:500',

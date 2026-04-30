@@ -44,6 +44,7 @@ class Setting extends Model
         'announcement_time',
         'maintenance_mode',
         // School identity
+        'headline',               // Realwork Mode — admin-editable landing headline
         'school_name',
         'school_npsn',
         'school_address',

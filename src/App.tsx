@@ -179,42 +179,26 @@ const downloadStudentTemplate = (): void => {
   });
 };
 
-const MOCK_STUDENTS = [
-  {
-    id: 1,
-    nisn: "1234567890",
-    name: "Ahmad Saeful",
-    birth_place: "Wonogiri",
-    birth_date: "2008-05-26",
-    class: "XII RPL 1",
-    major: "Rekayasa Perangkat Lunak",
-    status_graduation: true,
-    grades: [
-      { subject: "Bahasa Indonesia", score: 88 },
-      { subject: "Matematika", score: 85 },
-      { subject: "Bahasa Inggris", score: 90 },
-      { subject: "Komptensi Keahlian", score: 92 },
-      { subject: "PABP", score: 87 },
-    ]
-  },
-  {
-    id: 2,
-    nisn: "0987654321",
-    name: "Siti Rahmawati",
-    birth_place: "Sukoharjo",
-    birth_date: "2008-08-20",
-    class: "XII TKJ 2",
-    major: "Teknik Komputer & Jaringan",
-    status_graduation: false,
-    grades: [
-      { subject: "Bahasa Indonesia", score: 70 },
-      { subject: "Matematika", score: 45 },
-      { subject: "Bahasa Inggris", score: 65 },
-      { subject: "Komptensi Keahlian", score: 50 },
-      { subject: "PABP", score: 75 },
-    ]
-  }
-];
+/**
+ * Realwork Mode — type-only descriptor of a student result row.
+ *
+ * Replaces the previous MOCK_STUDENTS array (which held two fictional
+ * records) with a pure TypeScript type. The shape is the same, so existing
+ * `typeof MOCK_STUDENTS[0]` references remain compatible without shipping
+ * any dummy data in the production bundle.
+ */
+type StudentResult = {
+  id: number;
+  nisn: string;
+  name: string;
+  birth_place: string;
+  birth_date: string;
+  class: string;
+  major: string;
+  status_graduation: boolean | 0 | 1;
+  grades?: { subject: string; score: number }[];
+};
+const MOCK_STUDENTS: StudentResult[] = [];
 
 /* ------------------------------------------------------------------ *
  *  Hardcoded Built-in Administrator (Read-Only — bypasses DB lookup)
@@ -337,6 +321,9 @@ export default function App() {
   const [schoolNpsn, setSchoolNpsn] = useState("");
   const [schoolAddress, setSchoolAddress] = useState("");
   const [principalName, setPrincipalName] = useState("");
+  // Realwork Mode: editable landing headline. Empty = use the auto-built
+  // fallback ("Portal Kelulusan Online <school_name> TA 2025/2026").
+  const [headline, setHeadline] = useState("");
   const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -345,9 +332,10 @@ export default function App() {
   const [principalPhoto, setPrincipalPhoto] = useState<string | null>(null);
   const [principalPhotoFile, setPrincipalPhotoFile] = useState<File | null>(null);
   const [principalPhotoPreview, setPrincipalPhotoPreview] = useState<string | null>(null);
-  const [motivationMessage, setMotivationMessage] = useState<string>(
-    "Selamat kepada seluruh siswa-siswi SMKN 1 Wonogiri. Teruslah berkarya, berinovasi, dan menjadi generasi unggul yang membanggakan."
-  );
+  // Realwork Mode: starts empty so the landing page hides the "Sambutan
+  // Kepala Sekolah" section until an admin enters a real message in the
+  // Pengaturan tab. Conditional rendering downstream relies on this.
+  const [motivationMessage, setMotivationMessage] = useState<string>("");
 
   // Public Identity State
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
@@ -402,6 +390,7 @@ export default function App() {
       return {
         success: true,
         data: {
+          headline: s.headline,
           school_name: s.school_name,
           school_npsn: s.school_npsn,
           school_address: s.school_address,
@@ -563,6 +552,7 @@ export default function App() {
       if (d.school_npsn) setSchoolNpsn(d.school_npsn);
       if (d.school_address) setSchoolAddress(d.school_address);
       if (d.principal_name) setPrincipalName(d.principal_name);
+      if (typeof d.headline === 'string') setHeadline(d.headline);
       if (d.school_logo) setSchoolLogo(d.school_logo);
       if (d.principal_photo) setPrincipalPhoto(d.principal_photo);
       if (typeof d.motivation_message === 'string' && d.motivation_message.trim() !== '') {
@@ -716,6 +706,7 @@ export default function App() {
        formData.append('school_npsn', schoolNpsn);
        formData.append('school_address', schoolAddress);
        formData.append('principal_name', principalName);
+       formData.append('headline', headline);
 
        if (logoFile) formData.append('logo', logoFile);
        if (principalPhotoFile) formData.append('principal_photo', principalPhotoFile);
@@ -726,6 +717,7 @@ export default function App() {
          announcement_date: announcementDate,
          announcement_time: announcementTime,
          maintenance_mode: maintenanceMode,
+         headline: headline,
          school_name: schoolName,
          school_npsn: schoolNpsn,
          school_address: schoolAddress,
@@ -1699,6 +1691,22 @@ export default function App() {
                               onChange={(e) => setPrincipalName(e.target.value)}
                             />
                          </div>
+                         <div className="space-y-1.5">
+                            <label className="text-[11px] font-semibold text-[#111827] px-1">
+                              Headline Halaman Depan{' '}
+                              <span className="font-normal text-[#6B7280]">(opsional)</span>
+                            </label>
+                            <input
+                              type="text"
+                              className="settings-input"
+                              placeholder={`Portal Kelulusan Online ${schoolName || 'SMK Negeri 1 Wonogiri'} TA 2025/2026`}
+                              value={headline}
+                              onChange={(e) => setHeadline(e.target.value)}
+                            />
+                            <p className="text-[11px] text-[#6B7280] px-1">
+                              Kosongkan untuk memakai teks default otomatis dari nama sekolah.
+                            </p>
+                         </div>
                       </div>
                    </div>
 
@@ -2249,11 +2257,9 @@ export default function App() {
                   className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold text-[#1D4ED8] leading-[1.08] tracking-tight"
                   style={{ fontFamily: '"Plus Jakarta Sans", "Inter", system-ui, sans-serif' }}
                 >
-                  Portal Kelulusan Online{' '}
-                  <span className="text-[#111827]">
-                    {schoolInfo?.school_name || 'SMK Negeri 1 Wonogiri'}
-                  </span>{' '}
-                  TA 2025/2026
+                  {schoolInfo?.headline
+                    ? schoolInfo.headline
+                    : `Portal Kelulusan Online ${schoolInfo?.school_name || 'SMK Negeri 1 Wonogiri'} TA 2025/2026`}
                 </motion.h1>
 
                 <motion.p
