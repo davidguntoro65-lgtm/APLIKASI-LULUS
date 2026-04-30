@@ -77,25 +77,32 @@ class AdminController extends Controller
     public function importExcel(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls'
+            'file' => 'required|mimes:xlsx,xls,csv,txt|max:10240', // 10 MB
         ]);
 
         try {
             $import = new \App\Imports\StudentImport;
             \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Import selesai!',
+                'message' => sprintf(
+                    'Import selesai. %d baris berhasil, %d baris gagal.',
+                    $import->imported,
+                    $import->failed
+                ),
                 'stats' => [
-                    'total' => Student::count(),
-                    'last_import_time' => now()->toDateTimeString()
-                ]
+                    'imported'         => $import->imported,
+                    'failed'           => $import->failed,
+                    'errors'           => array_slice($import->errors, 0, 20),
+                    'total'            => Student::count(),
+                    'last_import_time' => now()->toDateTimeString(),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengimport: ' . $e->getMessage()
+                'message' => 'Gagal mengimport: ' . $e->getMessage(),
             ], 500);
         }
     }

@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp } from 'lucide-react';
+import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import * as XLSX from 'xlsx';
 
 // Mock Data + Admin Stats
 const MOCK_STATS = {
@@ -43,6 +44,99 @@ const formatInlineBirth = (place?: string | null, iso?: string | null): string =
   if (!p) return dateStr;
   if (!dateStr) return p;
   return `${p}, ${dateStr}`;
+};
+
+/**
+ * Generate the official student-import .xlsx template and trigger a download.
+ *
+ * Schema follows the StudentImport rules in laravel/app/Imports/StudentImport.php.
+ * The 2 sample rows demonstrate the supported date formats:
+ *   - YYYY-MM-DD          ("2008-05-26")
+ *   - DD/MM/YYYY          ("20/08/2008")
+ * The Carbon-based importer also accepts Excel serial numbers automatically
+ * if the cell is formatted as a real date in Excel.
+ */
+const TEMPLATE_HEADERS = [
+  'nisn',
+  'name',
+  'birth_place',
+  'birth_date',
+  'class',
+  'major',
+  'status',
+] as const;
+
+const TEMPLATE_SAMPLE_ROWS = [
+  {
+    nisn: '1234567890',
+    name: 'Ahmad Saeful',
+    birth_place: 'Wonogiri',
+    birth_date: '2008-05-26',
+    class: 'XII RPL 1',
+    major: 'Rekayasa Perangkat Lunak',
+    status: 1,
+  },
+  {
+    nisn: '0987654321',
+    name: 'Siti Rahmawati',
+    birth_place: 'Sukoharjo',
+    birth_date: '20/08/2008',
+    class: 'XII TKJ 2',
+    major: 'Teknik Komputer & Jaringan',
+    status: 0,
+  },
+];
+
+const downloadStudentTemplate = (): void => {
+  const wb = XLSX.utils.book_new();
+
+  // --- Sheet 1: Data Siswa (the actual import sheet) ---
+  const ws = XLSX.utils.json_to_sheet(TEMPLATE_SAMPLE_ROWS, {
+    header: TEMPLATE_HEADERS as unknown as string[],
+  });
+
+  // Friendly column widths
+  ws['!cols'] = [
+    { wch: 14 }, // nisn
+    { wch: 28 }, // name
+    { wch: 18 }, // birth_place
+    { wch: 14 }, // birth_date
+    { wch: 14 }, // class
+    { wch: 32 }, // major
+    { wch: 8 },  // status
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa');
+
+  // --- Sheet 2: Petunjuk (human-readable instructions) ---
+  const instructions = [
+    ['PETUNJUK PENGISIAN — Template Import Siswa SMKN 1 Wonogiri 2026'],
+    [],
+    ['Kolom Wajib', 'Keterangan'],
+    ['nisn', 'Nomor Induk Siswa Nasional (10 digit, unik).'],
+    ['name', 'Nama lengkap siswa (huruf kapital direkomendasikan).'],
+    ['birth_place', 'Kota / Kabupaten kelahiran (contoh: Wonogiri).'],
+    [
+      'birth_date',
+      'Format yang didukung: YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, "26 Mei 2008", atau format tanggal Excel.',
+    ],
+    ['class', 'Kelas siswa (contoh: XII RPL 1).'],
+    ['major', 'Konsentrasi Keahlian (contoh: Rekayasa Perangkat Lunak).'],
+    ['status', '1 = LULUS, 0 = BELUM LULUS.'],
+    [],
+    ['Catatan:'],
+    ['• Baris 1 (header) wajib persis seperti pada sheet "Data Siswa".'],
+    ['• Data siswa baru dimulai dari baris 2.'],
+    ['• Hapus baris contoh sebelum mengunggah file.'],
+    ['• Disusun oleh TIM IT SKANSAGIRI — Powered by Joben Enterprise.'],
+  ];
+  const wsInfo = XLSX.utils.aoa_to_sheet(instructions);
+  wsInfo['!cols'] = [{ wch: 18 }, { wch: 70 }];
+  XLSX.utils.book_append_sheet(wb, wsInfo, 'Petunjuk');
+
+  XLSX.writeFile(wb, 'template_import_siswa_skansagiri_2026.xlsx', {
+    bookType: 'xlsx',
+  });
 };
 
 const MOCK_STUDENTS = [
@@ -687,7 +781,12 @@ export default function App() {
                          <button className="gold-button w-full shadow-2xl shadow-slate-900/10">
                            MULAI PROSES IMPORT
                          </button>
-                         <button className="w-full py-4 bg-slate-100 text-slate-500 rounded-[20px] font-black text-xs tracking-widest uppercase hover:bg-slate-200 transition-all border-b-4 border-slate-200 active:border-b-0">
+                         <button
+                           type="button"
+                           onClick={downloadStudentTemplate}
+                           className="w-full py-4 bg-slate-100 text-slate-500 rounded-[20px] font-black text-xs tracking-widest uppercase hover:bg-slate-200 transition-all border-b-4 border-slate-200 active:border-b-0 flex items-center justify-center gap-2"
+                         >
+                           <Download size={14} />
                            DOWNLOAD TEMPLATE
                          </button>
                       </div>
