@@ -4,7 +4,9 @@ Sistem informasi pengumuman kelulusan siswa SMKN 1 Wonogiri Tahun Pelajaran 2025
 
 ## Project Type
 
-Frontend-only React + TypeScript single-page app built with Vite and Tailwind CSS v4. The repository also contains a `laravel/` directory with reference PHP controllers, models, migrations, and routes that document the intended backend API shape, but no Laravel runtime is installed or wired up. The frontend gracefully falls back to built-in mock data when the API endpoints (e.g. `/api/school-info`, `/api/admin/stats`) return errors, so the app works standalone.
+Frontend-only React + TypeScript single-page app built with Vite and Tailwind CSS v4. The repository also contains a `laravel/` directory with reference PHP controllers, models, migrations, and routes that document the intended backend API shape, but no Laravel runtime is installed or wired up.
+
+The app is **fully functional standalone**: a localStorage-backed store (`src/lib/localStore.ts`) transparently substitutes for the API whenever requests fail, so every admin operation — input, edit, save, import (Excel), archive, restore, reporting — works without a backend. When the Laravel API is reachable (e.g. on cPanel), `apiCall()` uses the real endpoint instead. The UI is identical in both modes; an amber banner appears when the local fallback is active.
 
 ## Multi-Domain / Portability
 
@@ -35,15 +37,24 @@ The app is deliberately built to be **drop-in portable** between Replit, cPanel 
 
 - `index.html` — Vite entry
 - `src/main.tsx` — React bootstrap
-- `src/App.tsx` — All UI (countdown landing, student lookup, admin dashboard) and mock data
+- `src/App.tsx` — All UI (countdown landing, student lookup, admin dashboard with 5 tabs)
 - `src/index.css` — Tailwind styles
-- `src/lib/utils.ts` — Helpers
+- `src/lib/utils.ts` — Helpers (`cn`)
+- `src/lib/localStore.ts` — Self-contained client-side persistence layer (students CRUD, settings, archives, audit log) + transparent `apiCall()` wrapper
 - `vite.config.ts` — Vite config (host `0.0.0.0`, port `5000`, `allowedHosts: true` for the Replit proxy)
-- `laravel/` — Reference-only PHP backend code (not executed)
+- `laravel/` — Reference-only PHP backend code (not executed). Includes `DEPLOYMENT.md`, hardened controllers, and `DeployController` for one-click setup.
 
 ## Key Features
 
-- **Integrity Pact (Pakta Integritas) Modal** — Spring-animated gatekeeper pop-up shown on first visit to the public landing. Displays the official announcement title + a red "HIMBAUAN PASCA PENGUMUMAN" list (no graffiti, no convoys, no crowds, no unlawful acts, uphold school name). Cannot be dismissed without checking the agreement and clicking "Saya Setuju & Lanjutkan". Persisted in `localStorage` under `skansagiri.integrityPact.agreed.v1` so a refresh in the same session does not re-prompt.
+- **Integrity Pact (Pakta Integritas) Modal** — Spring-animated gatekeeper pop-up shown on first visit to the public landing. Displays the official announcement title + a red "HIMBAUAN PASCA PENGUMUMAN" list. Persisted in `localStorage` under `skansagiri.integrityPact.agreed.v1`. Can be reset from the **Setup & Maintenance** tab.
+- **Admin Dashboard** — 5 tabs, all fully wired end-to-end:
+  1. **Ringkasan Stat** — live KPI cards + passing-rate donut chart (driven by local stats).
+  2. **Data Siswa** — searchable list with edit modal, export-to-Excel report (with summary sheet), and reset-tracking action. Empty-state CTA links to Import Center.
+  3. **Import Center** — Excel `.xlsx`/`.xls` parser (client-side via `xlsx`), live status feedback (busy / done / error), per-row error report, automatic snapshot **archive** with one-click restore, plus template download.
+  4. **Pengaturan** — school identity, principal photo + motivation message, schedule, maintenance toggle, branded "Simpan Semua Perubahan" CTA. Images are persisted as base64 dataURLs in localStorage when offline.
+  5. **Setup & Maintenance** — health card (active domain, backend status, local data + storage usage), one-click deploy form (token-protected `/api/deploy/setup`), backup download, reset Integrity Pact, full localStorage wipe, and a 200-entry audit log of every admin/public action.
+- **Toast notifications** — non-blocking success/error/info messages replace native `alert()` across all admin actions.
+- **Offline banner** — automatically appears at the top of every admin tab when the backend is unreachable, explaining that data is being persisted locally.
 
 ## Replit Setup
 

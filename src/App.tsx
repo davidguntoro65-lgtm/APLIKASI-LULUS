@@ -4,11 +4,23 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download, Lock, ShieldCheck, Activity, Sparkles, Quote, AlertTriangle, Info, Megaphone } from 'lucide-react';
+import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download, Lock, ShieldCheck, Activity, Sparkles, Quote, AlertTriangle, Info, Megaphone, ServerCog, RefreshCw, HardDrive, Archive, FileSpreadsheet, RotateCcw, Trash2, Shield, Save, Heart, Wifi, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import * as XLSX from 'xlsx';
+import {
+  apiCall,
+  studentStore,
+  settingsStore,
+  archiveStore,
+  audit as auditLog,
+  localStoreFootprint,
+  clearAllLocal,
+  exportLocalSnapshot,
+  type ImportArchive,
+  type AuditEntry,
+} from './lib/localStore';
 
 // Mock Data + Admin Stats
 const MOCK_STATS = {
@@ -206,7 +218,17 @@ const MOCK_STUDENTS = [
 
 export default function App() {
   const [view, setView] = useState<'public' | 'admin'>('public');
-  const [adminTab, setAdminTab] = useState<'overview' | 'students' | 'import' | 'settings'>('overview');
+  const [adminTab, setAdminTab] = useState<'overview' | 'students' | 'import' | 'settings' | 'maintenance'>('overview');
+
+  // Banner shown across the admin app whenever a request fell back to localStorage.
+  const [offlineMode, setOfflineMode] = useState(false);
+  // Toast: { type, msg } — single-line ephemeral notifier replacing native alert()
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
+  const showToast = (type: 'success' | 'error' | 'info', msg: string) => {
+    setToast({ type, msg });
+    window.clearTimeout((showToast as any)._t);
+    (showToast as any)._t = window.setTimeout(() => setToast(null), 3500);
+  };
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -279,25 +301,38 @@ export default function App() {
     setShowIntegrityPact(false);
   };
 
-  // Fetch Public Info
+  // Fetch Public Info — falls back to local store when the API is unreachable.
   const fetchPublicInfo = async () => {
-    try {
-      const resp = await fetch('/api/school-info');
-      const json = await resp.json();
-      if (json.success) {
-        setSchoolInfo(json.data);
-        setMaintenanceMode(json.data.maintenance_mode);
-        setIsReady(json.data.announcement_active);
-        if (json.data.principal_photo) setPrincipalPhoto(json.data.principal_photo);
-        if (typeof json.data.motivation_message === 'string' && json.data.motivation_message.trim() !== '') {
-          setMotivationMessage(json.data.motivation_message);
-        }
+    const json = await apiCall<any>('/api/school-info', {}, () => {
+      const s = settingsStore.get();
+      const target = new Date(`${s.announcement_date}T${s.announcement_time}:00`).getTime();
+      return {
+        success: true,
+        data: {
+          school_name: s.school_name,
+          school_npsn: s.school_npsn,
+          school_address: s.school_address,
+          school_logo: s.school_logo,
+          principal_name: s.principal_name,
+          principal_photo: s.principal_photo,
+          motivation_message: s.motivation_message,
+          maintenance_mode: s.maintenance_mode,
+          announcement_datetime: new Date(target).toISOString(),
+          announcement_active: !s.maintenance_mode && Date.now() >= target,
+        },
+      };
+    });
+    if (json._fromLocal) setOfflineMode(true);
+    if (json.success && json.data) {
+      setSchoolInfo(json.data);
+      setMaintenanceMode(!!json.data.maintenance_mode);
+      setIsReady(!!json.data.announcement_active);
+      if (json.data.principal_photo) setPrincipalPhoto(json.data.principal_photo);
+      if (typeof json.data.motivation_message === 'string' && json.data.motivation_message.trim() !== '') {
+        setMotivationMessage(json.data.motivation_message);
       }
-    } catch (e) {
-      console.error("Failed to fetch school info", e);
-    } finally {
-      setIsBootstrapping(false);
     }
+    setIsBootstrapping(false);
   };
 
   // Countdown Interval Logic
@@ -376,53 +411,78 @@ export default function App() {
   const [editStudent, setEditStudent] = useState<any | null>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
-  // Fetch Dashboard Stats
+  // Maintenance tab state
+  const [deployToken, setDeployToken] = useState<string>("");
+  const [deployBusy, setDeployBusy] = useState(false);
+  const [deployResult, setDeployResult] = useState<any | null>(null);
+  const [healthInfo, setHealthInfo] = useState<any | null>(null);
+  const [archives, setArchives] = useState<ImportArchive[]>([]);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [storageFootprint, setStorageFootprint] = useState<{ keys: { key: string; size: number }[]; totalKB: number }>({ keys: [], totalKB: 0 });
+
+  // Import center state — drives feedback under the dropzone
+  const [importStatus, setImportStatus] = useState<
+    | { kind: 'idle' }
+    | { kind: 'busy'; filename: string }
+    | { kind: 'done'; filename: string; imported: number; failed: number; errors: string[] }
+    | { kind: 'error'; message: string }
+  >({ kind: 'idle' });
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+
+  // Fetch Dashboard Stats — local-first stats so the chart always reflects truth.
   const fetchStats = async () => {
-    try {
-      const resp = await fetch('/api/admin/stats');
-      const json = await resp.json();
-      if (json.success) setStatsData(json.data);
-    } catch (e) {
-      console.error("Failed to fetch stats", e);
-    }
+    const json = await apiCall<any>('/api/admin/stats', {}, () => ({
+      success: true,
+      data: studentStore.stats(),
+    }));
+    if (json._fromLocal) setOfflineMode(true);
+    if (json.success && json.data) setStatsData(json.data);
   };
 
-  // Fetch Students List
+  // Fetch Students List — local-first paginated list.
   const fetchStudents = async (query = "") => {
     setIsLoading(true);
-    try {
-      const resp = await fetch(`/api/admin/students?search=${query}`);
-      const json = await resp.json();
-      if (json.success) setStudentsData(json.data.data);
-    } catch (e) {
-      console.error("Failed to fetch students", e);
-    } finally {
-      setIsLoading(false);
+    const json = await apiCall<any>(`/api/admin/students?search=${encodeURIComponent(query)}`, {}, () => ({
+      success: true,
+      data: { data: studentStore.list(query) },
+    }));
+    if (json._fromLocal) setOfflineMode(true);
+    if (json.success && json.data) {
+      const list = Array.isArray(json.data?.data) ? json.data.data : (Array.isArray(json.data) ? json.data : []);
+      setStudentsData(list);
+    }
+    setIsLoading(false);
+  };
+
+  // Settings — local-first.
+  const fetchSettings = async () => {
+    const json = await apiCall<any>('/api/admin/settings', {}, () => ({
+      success: true,
+      data: settingsStore.get(),
+    }));
+    if (json._fromLocal) setOfflineMode(true);
+    if (json.success && json.data) {
+      const d = json.data;
+      if (d.announcement_date) setAnnouncementDate(d.announcement_date);
+      if (d.announcement_time) setAnnouncementTime(d.announcement_time);
+      setMaintenanceMode(!!d.maintenance_mode);
+      if (d.school_name) setSchoolName(d.school_name);
+      if (d.school_npsn) setSchoolNpsn(d.school_npsn);
+      if (d.school_address) setSchoolAddress(d.school_address);
+      if (d.principal_name) setPrincipalName(d.principal_name);
+      if (d.school_logo) setSchoolLogo(d.school_logo);
+      if (d.principal_photo) setPrincipalPhoto(d.principal_photo);
+      if (typeof d.motivation_message === 'string' && d.motivation_message.trim() !== '') {
+        setMotivationMessage(d.motivation_message);
+      }
     }
   };
 
-  // Initial Load for Admin
-  const fetchSettings = async () => {
-    try {
-      const resp = await fetch('/api/admin/settings');
-      const json = await resp.json();
-      if (json.success) {
-        setAnnouncementDate(json.data.announcement_date);
-        setAnnouncementTime(json.data.announcement_time);
-        setMaintenanceMode(json.data.maintenance_mode);
-        setSchoolName(json.data.school_name);
-        setSchoolNpsn(json.data.school_npsn);
-        setSchoolAddress(json.data.school_address);
-        setPrincipalName(json.data.principal_name);
-        setSchoolLogo(json.data.school_logo);
-        if (json.data.principal_photo) setPrincipalPhoto(json.data.principal_photo);
-        if (typeof json.data.motivation_message === 'string' && json.data.motivation_message.trim() !== '') {
-          setMotivationMessage(json.data.motivation_message);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to fetch settings", e);
-    }
+  // Refresh derived maintenance-tab data
+  const refreshMaintenancePanels = () => {
+    setArchives(archiveStore.list());
+    setAuditEntries(auditLog.list());
+    setStorageFootprint(localStoreFootprint());
   };
 
   useEffect(() => {
@@ -430,56 +490,125 @@ export default function App() {
       fetchStats();
       fetchStudents(adminSearch);
       fetchSettings();
+      refreshMaintenancePanels();
     }
   }, [view, adminSearch]);
 
-  // Handle Individual Update
+  // Handle Individual Update — apiCall, then localStore fallback.
   const handleUpdateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editStudent) return;
-    
-    try {
-      const resp = await fetch(`/api/admin/students/${editStudent.id}`, {
+
+    const json = await apiCall<any>(
+      `/api/admin/students/${editStudent.id}`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editStudent)
-      });
-      const json = await resp.json();
-      if (json.success) {
-        setEditStudent(null);
-        fetchStudents(adminSearch);
-        fetchStats();
-      }
-    } catch (e) {
-      console.error("Failed to update student", e);
+        body: JSON.stringify(editStudent),
+      },
+      () => {
+        const updated = studentStore.update(editStudent.id, {
+          status_graduation: editStudent.status_graduation ? 1 : 0,
+        });
+        return updated
+          ? { success: true, data: updated, message: 'Status siswa diperbarui.' }
+          : { success: false, message: 'Siswa tidak ditemukan di penyimpanan lokal.' };
+      },
+    );
+
+    if (json.success) {
+      showToast('success', json.message || 'Status siswa diperbarui.');
+      setEditStudent(null);
+      fetchStudents(adminSearch);
+      fetchStats();
+      refreshMaintenancePanels();
+    } else {
+      showToast('error', json.message || 'Gagal memperbarui siswa.');
     }
   };
 
-  // Handle Excel Import
+  /** Read a File as a base64 data URL — used to persist images in localStorage. */
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result ?? ''));
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(file);
+    });
+
+  // Handle Excel Import — parse client-side via XLSX, archive snapshot, fall back to local store.
+  const processImportFile = async (file: File) => {
+    setImportStatus({ kind: 'busy', filename: file.name });
+    setIsLoading(true);
+
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      const sheetName = wb.SheetNames.find((n) => n.toLowerCase().includes('siswa')) ?? wb.SheetNames[0];
+      if (!sheetName) throw new Error('File Excel tidak memiliki sheet apapun.');
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[sheetName], {
+        defval: '',
+        raw: false,
+      });
+
+      // Try the real API first; on failure, fall back to local bulkUpsert.
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const json = await apiCall<any>(
+        '/api/admin/import',
+        { method: 'POST', body: formData },
+        () => {
+          const result = studentStore.bulkUpsert(rows as any);
+          archiveStore.add({
+            filename: file.name,
+            imported: result.imported,
+            failed: result.failed,
+            total_after: result.snapshot.length,
+            errors: result.errors,
+            snapshot: result.snapshot,
+          });
+          return {
+            success: true,
+            data: { imported: result.imported, failed: result.failed, errors: result.errors },
+            message: `${result.imported} siswa berhasil diproses${result.failed ? `, ${result.failed} gagal` : ''}.`,
+          };
+        },
+      );
+
+      if (json.success) {
+        const d = json.data ?? {};
+        setImportStatus({
+          kind: 'done',
+          filename: file.name,
+          imported: Number(d.imported ?? rows.length),
+          failed: Number(d.failed ?? 0),
+          errors: Array.isArray(d.errors) ? d.errors : [],
+        });
+        showToast('success', json.message || 'Import selesai.');
+        fetchStudents(adminSearch);
+        fetchStats();
+        refreshMaintenancePanels();
+      } else {
+        setImportStatus({ kind: 'error', message: json.message || 'Import gagal.' });
+        showToast('error', json.message || 'Import gagal.');
+      }
+    } catch (err: any) {
+      const message = err?.message || 'Gagal memproses file Excel.';
+      setImportStatus({ kind: 'error', message });
+      showToast('error', message);
+    } finally {
+      setIsLoading(false);
+      setPendingImportFile(null);
+    }
+  };
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    setIsLoading(true);
-    try {
-      const resp = await fetch('/api/admin/import', {
-        method: 'POST',
-        body: formData
-      });
-      const json = await resp.json();
-      alert(json.message);
-      if (json.success) {
-        fetchStats();
-        setAdminTab('overview');
-      }
-    } catch (e) {
-      alert("Gagal mengimport file.");
-    } finally {
-      setIsLoading(false);
-    }
+    setPendingImportFile(file);
+    setImportStatus({ kind: 'idle' });
+    e.target.value = ''; // allow re-selecting the same file
   };
 
   // Handle Settings Save
@@ -494,25 +623,57 @@ export default function App() {
        formData.append('school_npsn', schoolNpsn);
        formData.append('school_address', schoolAddress);
        formData.append('principal_name', principalName);
-       
-       if (logoFile) {
-         formData.append('logo', logoFile);
-       }
-       if (principalPhotoFile) {
-         formData.append('principal_photo', principalPhotoFile);
-       }
+
+       if (logoFile) formData.append('logo', logoFile);
+       if (principalPhotoFile) formData.append('principal_photo', principalPhotoFile);
        formData.append('motivation_message', motivationMessage);
 
-       const resp = await fetch('/api/admin/settings', {
-         method: 'POST',
-         body: formData
-       });
-       const json = await resp.json();
-       alert(json.message || "Pengaturan disimpan!");
-       fetchPublicInfo();
-       if (view === 'admin') fetchSettings();
-     } catch (e) {
-       alert("Gagal menyimpan pengaturan.");
+       // Persist images as base64 dataURLs locally so they survive page reloads.
+       const localPatch: any = {
+         announcement_date: announcementDate,
+         announcement_time: announcementTime,
+         maintenance_mode: maintenanceMode,
+         school_name: schoolName,
+         school_npsn: schoolNpsn,
+         school_address: schoolAddress,
+         principal_name: principalName,
+         motivation_message: motivationMessage,
+       };
+       if (logoFile) localPatch.school_logo = await fileToDataUrl(logoFile);
+       if (principalPhotoFile) localPatch.principal_photo = await fileToDataUrl(principalPhotoFile);
+
+       const json = await apiCall<any>(
+         '/api/admin/settings',
+         { method: 'POST', body: formData },
+         () => {
+           const next = settingsStore.patch(localPatch);
+           return { success: true, data: next, message: 'Pengaturan disimpan secara lokal.' };
+         },
+       );
+
+       if (json.success) {
+         showToast('success', json.message || 'Pengaturan disimpan!');
+         // After save, refresh state from authoritative source so previews + public hero update.
+         if (json._fromLocal) {
+           if (localPatch.school_logo) {
+             setSchoolLogo(localPatch.school_logo);
+             setLogoFile(null);
+             setLogoPreview(null);
+           }
+           if (localPatch.principal_photo) {
+             setPrincipalPhoto(localPatch.principal_photo);
+             setPrincipalPhotoFile(null);
+             setPrincipalPhotoPreview(null);
+           }
+         }
+         fetchPublicInfo();
+         fetchSettings();
+         refreshMaintenancePanels();
+       } else {
+         showToast('error', json.message || 'Gagal menyimpan pengaturan.');
+       }
+     } catch (e: any) {
+       showToast('error', e?.message || 'Gagal menyimpan pengaturan.');
      } finally {
        setIsLoading(false);
      }
@@ -524,7 +685,6 @@ export default function App() {
     setError("");
     setResult(null);
 
-    // If Maintenance Mode is Active
     if (maintenanceMode) {
       setTimeout(() => {
         setError("Sistem sedang dalam perawatan (Maintenance Mode). Silakan coba lagi nanti.");
@@ -533,22 +693,182 @@ export default function App() {
       return;
     }
 
-    // Real API Call
-    fetch('/api/check-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nisn: searchQuery, birth_date: birthDate })
-    })
-    .then(r => r.json())
-    .then(json => {
-      if (json.success) {
-        setResult(json.data);
-      } else {
-        setError(json.message || "Data tidak ditemukan.");
+    apiCall<any>(
+      '/api/check-status',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nisn: searchQuery, birth_date: birthDate }),
+      },
+      () => {
+        const found = studentStore.findByCredentials(searchQuery, birthDate);
+        return found
+          ? { success: true, data: { ...found, status_graduation: !!found.status_graduation } }
+          : { success: false, message: 'Data siswa tidak ditemukan. Periksa kembali NISN dan Tanggal Lahir.' };
+      },
+    )
+      .then((json) => {
+        if (json.success && json.data) {
+          setResult(json.data);
+        } else {
+          setError(json.message || 'Data tidak ditemukan.');
+        }
+      })
+      .finally(() => setIsSearching(false));
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Reporting & Maintenance helpers
+   * ------------------------------------------------------------------ */
+
+  const handleExportReport = () => {
+    const all = studentStore.list();
+    const stats = studentStore.stats();
+    const wb = XLSX.utils.book_new();
+
+    const wsRows = all.map((s, i) => ({
+      No: i + 1,
+      NISN: s.nisn,
+      Nama: s.name,
+      'Tempat Lahir': s.birth_place,
+      'Tanggal Lahir': s.birth_date,
+      Kelas: s.class,
+      'Konsentrasi Keahlian': s.major,
+      Status: s.status_graduation ? 'LULUS' : 'BELUM LULUS',
+      'Sudah Dicek': s.viewed_at ? 'Ya' : 'Tidak',
+      'Diperbarui': s.updated_at,
+    }));
+    const ws = XLSX.utils.json_to_sheet(wsRows);
+    ws['!cols'] = [{ wch: 5 }, { wch: 14 }, { wch: 28 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 32 }, { wch: 14 }, { wch: 14 }, { wch: 22 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa');
+
+    const summary = [
+      ['LAPORAN KELULUSAN SMKN 1 WONOGIRI — TA 2025/2026'],
+      ['Diekspor', new Date().toLocaleString('id-ID')],
+      [],
+      ['Metrik', 'Jumlah'],
+      ['Total Siswa',     stats.total],
+      ['Siswa Lulus',     stats.lulus],
+      ['Belum Lulus',     stats.tidakLulus],
+      ['Sudah Mengecek',  stats.checked],
+      ['Passing Rate (%)', stats.total ? +((stats.lulus / stats.total) * 100).toFixed(2) : 0],
+      [],
+      ['Disusun oleh TIM IT SKANSAGIRI — Powered by Joben Enterprise.'],
+    ];
+    const wsSum = XLSX.utils.aoa_to_sheet(summary);
+    wsSum['!cols'] = [{ wch: 28 }, { wch: 28 }];
+    XLSX.utils.book_append_sheet(wb, wsSum, 'Ringkasan');
+
+    XLSX.writeFile(wb, `laporan_kelulusan_skansagiri_${new Date().toISOString().slice(0,10)}.xlsx`);
+    auditLog.log({ actor: 'admin', action: 'report.export', meta: { rows: all.length } });
+    refreshMaintenancePanels();
+    showToast('success', `Laporan diekspor (${all.length} siswa).`);
+  };
+
+  const handleHealthCheck = async () => {
+    const local = {
+      success: true,
+      data: {
+        app_url: typeof window !== 'undefined' ? window.location.origin : 'unknown',
+        env: 'frontend-only',
+        backend: 'unreachable',
+        time: new Date().toISOString(),
+        students_local: studentStore.list().length,
+        storage_kb: localStoreFootprint().totalKB,
+      },
+    };
+    const json = await apiCall<any>('/api/deploy/health', {}, () => local);
+    setHealthInfo({ ...json.data, _fromLocal: !!json._fromLocal });
+    showToast('info', json._fromLocal ? 'Backend tidak terdeteksi — info diambil dari lokal.' : 'Status server diperbarui.');
+  };
+
+  const handleRunSetup = async () => {
+    if (!deployToken.trim()) {
+      showToast('error', 'Masukkan DEPLOY_TOKEN terlebih dahulu.');
+      return;
+    }
+    setDeployBusy(true);
+    setDeployResult(null);
+    try {
+      const resp = await fetch(`/api/deploy/setup?token=${encodeURIComponent(deployToken.trim())}`);
+      const ct = resp.headers.get('content-type') ?? '';
+      if (!ct.includes('application/json')) {
+        throw new Error('Endpoint /api/deploy/setup tidak tersedia di lingkungan ini (frontend-only).');
       }
-    })
-    .catch(() => setError("Terjadi kesalahan koneksi."))
-    .finally(() => setIsSearching(false));
+      const json = await resp.json();
+      setDeployResult(json);
+      showToast(json.success ? 'success' : 'error', json.message || (json.success ? 'Setup berhasil.' : 'Setup gagal.'));
+    } catch (e: any) {
+      setDeployResult({ success: false, message: e?.message || 'Tidak dapat menghubungi endpoint setup.' });
+      showToast('error', e?.message || 'Setup gagal.');
+    } finally {
+      setDeployBusy(false);
+    }
+  };
+
+  const handleResetIntegrityPact = () => {
+    try {
+      window.localStorage.removeItem(INTEGRITY_PACT_KEY);
+      showToast('success', 'Pakta Integritas direset. Akan tampil pada kunjungan berikutnya.');
+      auditLog.log({ actor: 'admin', action: 'integrity_pact.reset' });
+      refreshMaintenancePanels();
+    } catch {
+      showToast('error', 'Gagal mereset Pakta Integritas.');
+    }
+  };
+
+  const handleDownloadBackup = () => {
+    const blob = new Blob([exportLocalSnapshot()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup_skansagiri_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    auditLog.log({ actor: 'admin', action: 'backup.download' });
+    refreshMaintenancePanels();
+    showToast('success', 'Backup data lokal diunduh.');
+  };
+
+  const handleClearAllLocal = () => {
+    if (!confirm('Hapus SEMUA data lokal (siswa, pengaturan, arsip, audit)? Tindakan ini tidak dapat dibatalkan.')) return;
+    clearAllLocal();
+    showToast('success', 'Semua data lokal telah dihapus.');
+    fetchStats();
+    fetchStudents();
+    fetchSettings();
+    refreshMaintenancePanels();
+  };
+
+  const handleRestoreArchive = (id: number) => {
+    if (!confirm('Pulihkan arsip ini? Data siswa saat ini akan ditimpa dengan snapshot arsip.')) return;
+    if (archiveStore.restore(id)) {
+      showToast('success', 'Arsip berhasil dipulihkan.');
+      fetchStats();
+      fetchStudents(adminSearch);
+      refreshMaintenancePanels();
+    } else {
+      showToast('error', 'Arsip tidak ditemukan.');
+    }
+  };
+
+  const handleDeleteArchive = (id: number) => {
+    if (!confirm('Hapus arsip impor ini secara permanen?')) return;
+    archiveStore.remove(id);
+    refreshMaintenancePanels();
+    showToast('success', 'Arsip dihapus.');
+  };
+
+  const handleResetTracking = async () => {
+    if (!confirm('Hapus semua riwayat pengecekan siswa?')) return;
+    await apiCall<any>('/api/admin/reset-tracking', { method: 'POST' }, () => {
+      studentStore.resetTracking();
+      return { success: true, message: 'Riwayat pengecekan dikosongkan.' };
+    });
+    fetchStudents(adminSearch);
+    fetchStats();
+    refreshMaintenancePanels();
+    showToast('success', 'Riwayat pengecekan dikosongkan.');
   };
 
   if (view === 'admin') {
@@ -595,6 +915,13 @@ export default function App() {
               <Settings size={20} />
               <span>Pengaturan</span>
             </div>
+            <div
+              onClick={() => { setAdminTab('maintenance'); refreshMaintenancePanels(); handleHealthCheck(); }}
+              className={`admin-sidebar-item ${adminTab === 'maintenance' ? 'admin-sidebar-item-active' : ''}`}
+            >
+              <ServerCog size={20} />
+              <span>Setup &amp; Maintenance</span>
+            </div>
           </nav>
 
           <div className="p-6 border-t border-white/5 space-y-4">
@@ -617,22 +944,32 @@ export default function App() {
           <header className="flex justify-between items-center mb-10">
             <div>
                <h2 className="text-3xl font-black text-slate-800 tracking-tight capitalize">
-                 {adminTab === 'overview' ? 'Dashboard Overview' : 
-                  adminTab === 'students' ? 'Manajemen Siswa' : 
-                  adminTab === 'import' ? 'Update Data Massal' : 'Pengaturan Portal'}
+                 {adminTab === 'overview' ? 'Dashboard Overview' :
+                  adminTab === 'students' ? 'Manajemen Siswa' :
+                  adminTab === 'import' ? 'Update Data Massal' :
+                  adminTab === 'settings' ? 'Pengaturan Portal' : 'Setup & Maintenance'}
                </h2>
                <p className="text-slate-400 font-medium text-sm">Selamat datang, Admin SKANSAGIRI</p>
             </div>
             <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
                <div className="text-right">
                   <p className="text-[10px] font-black uppercase text-slate-400">Status Server</p>
-                  <p className="text-xs font-bold text-emerald-500 flex items-center justify-end gap-1">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                    Operational
+                  <p className={`text-xs font-bold flex items-center justify-end gap-1 ${offlineMode ? 'text-amber-500' : 'text-emerald-500'}`}>
+                    <span className={`w-2 h-2 rounded-full animate-pulse ${offlineMode ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                    {offlineMode ? 'Mode Lokal' : 'Operational'}
                   </p>
                </div>
             </div>
           </header>
+
+          {offlineMode && (
+            <div className="mb-6 flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800">
+              <Wifi size={18} className="mt-0.5 flex-shrink-0" />
+              <div className="text-[12px] leading-relaxed font-medium">
+                <span className="font-bold">Backend tidak terdeteksi.</span> Semua aksi (input, edit, save, import, arsip, laporan) tetap berfungsi dan disimpan secara aman di penyimpanan browser (localStorage). Saat backend tersedia kembali, data dapat dikirim ulang melalui menu <em>Setup &amp; Maintenance</em>.
+              </div>
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             {adminTab === 'overview' && (
@@ -762,17 +1099,22 @@ export default function App() {
                        onChange={(e) => setAdminSearch(e.target.value)}
                     />
                   </div>
-                  <button 
-                    onClick={async () => {
-                        if(confirm("Hapus semua riwayat pengecekan siswa?")) {
-                            await fetch('/api/admin/reset-tracking', { method: 'POST' });
-                            fetchStudents(adminSearch);
-                        }
-                    }}
-                    className="px-8 py-4 bg-rose-50 text-rose-600 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-rose-100 transition-all border-b-4 border-rose-200"
-                  >
-                     Reset Status Pengecekan
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={handleExportReport}
+                      className="px-5 py-4 bg-[#1D4ED8] text-white rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-[#1E40AF] transition-all border-b-4 border-[#1E3A8A] flex items-center gap-2 shadow-[0_8px_20px_-8px_rgba(29,78,216,0.6)]"
+                    >
+                      <FileSpreadsheet size={14} />
+                      Ekspor Laporan
+                    </button>
+                    <button
+                      onClick={handleResetTracking}
+                      className="px-5 py-4 bg-rose-50 text-rose-600 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-rose-100 transition-all border-b-4 border-rose-200 flex items-center gap-2"
+                    >
+                      <RotateCcw size={14} />
+                      Reset Pengecekan
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                    <table className="w-full">
@@ -787,7 +1129,30 @@ export default function App() {
                          </tr>
                       </thead>
                       <tbody>
-                         {studentsData.map((student) => (
+                         {studentsData.length === 0 ? (
+                           <tr>
+                             <td colSpan={6} className="px-8 py-20 text-center">
+                               <div className="flex flex-col items-center gap-3 text-slate-400">
+                                 <User size={40} strokeWidth={1.5} />
+                                 <p className="text-sm font-bold text-slate-500">Belum ada data siswa.</p>
+                                 <p className="text-[11px] font-medium">
+                                   {adminSearch
+                                     ? `Tidak ada hasil untuk "${adminSearch}".`
+                                     : 'Gunakan menu Import Center untuk mengunggah data dari Excel.'}
+                                 </p>
+                                 {!adminSearch && (
+                                   <button
+                                     onClick={() => setAdminTab('import')}
+                                     className="mt-2 px-5 py-2.5 bg-[#1D4ED8] text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-[#1E40AF] transition-all"
+                                   >
+                                     Mulai Import
+                                   </button>
+                                 )}
+                               </div>
+                             </td>
+                           </tr>
+                         ) : (
+                           studentsData.map((student) => (
                             <tr key={student.id} className="admin-table-row group">
                                <td className="px-8 py-6 font-mono text-xs font-bold text-slate-500">{student.nisn}</td>
                                <td className="px-6 py-6 transition-all group-hover:pl-8">
@@ -815,12 +1180,14 @@ export default function App() {
                                   <button
                                     onClick={() => setEditStudent(student)}
                                     className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm"
+                                    title="Edit status kelulusan"
                                   >
                                      <Settings size={18} />
                                   </button>
                                </td>
                             </tr>
-                         ))}
+                           ))
+                         )}
                       </tbody>
 
                    </table>
@@ -829,34 +1196,82 @@ export default function App() {
             )}
 
             {adminTab === 'import' && (
-              <motion.div 
+              <motion.div
                 key="import"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="max-w-3xl mx-auto"
+                className="max-w-3xl mx-auto space-y-8"
               >
                 <div className="quantum-card p-10 sm:p-12 text-center relative overflow-hidden">
-                   {/* Background element */}
                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#EFF4FF] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                   
+
                    <div className="relative z-10">
                       <div className="w-20 h-20 bg-[#1D4ED8] text-white rounded-2xl flex items-center justify-center mx-auto mb-7 shadow-[0_16px_36px_-12px_rgba(29,78,216,0.55)]">
                          <Database size={36} />
                       </div>
                       <h3 className="text-3xl font-extrabold text-[#111827] tracking-tight mb-2">Update Data Siswa</h3>
                       <p className="text-[#6B7280] text-sm font-normal mb-10 max-w-sm mx-auto">Import data massal dari Excel untuk memperbarui status kelulusan siswa secara akurat.</p>
-                      
-                      <div className="border-2 border-dashed border-[#DBEAFE] rounded-2xl p-12 mb-10 hover:border-[#1D4ED8] transition-all group cursor-pointer bg-[#F9FAFB] hover:bg-[#EFF4FF]/30 relative overflow-hidden">
+
+                      <div className={`border-2 border-dashed rounded-2xl p-12 mb-6 transition-all group cursor-pointer relative overflow-hidden ${
+                         pendingImportFile ? 'border-[#1D4ED8] bg-[#EFF4FF]/40' : 'border-[#DBEAFE] bg-[#F9FAFB] hover:border-[#1D4ED8] hover:bg-[#EFF4FF]/30'
+                      }`}>
                          <label className="cursor-pointer block">
                             <input type="file" className="hidden" onChange={handleImportFile} accept=".xlsx,.xls" />
                             <div className="relative z-10">
-                               <FileText size={44} className="mx-auto text-[#9CA3AF] group-hover:text-[#1D4ED8] transition-all mb-3 group-hover:scale-110" />
-                               <p className="text-base font-bold text-[#111827] transition-colors">Pilih File Excel</p>
-                               <p className="text-[11px] text-[#6B7280] font-medium mt-1.5">Format: .xlsx, .xls (Maks: 10MB)</p>
+                               {pendingImportFile ? (
+                                 <>
+                                   <FileSpreadsheet size={44} className="mx-auto text-[#1D4ED8] mb-3" />
+                                   <p className="text-base font-bold text-[#111827]">{pendingImportFile.name}</p>
+                                   <p className="text-[11px] text-[#1D4ED8] font-bold mt-1.5">
+                                     {(pendingImportFile.size / 1024).toFixed(1)} KB &middot; Klik untuk ganti file
+                                   </p>
+                                 </>
+                               ) : (
+                                 <>
+                                   <FileText size={44} className="mx-auto text-[#9CA3AF] group-hover:text-[#1D4ED8] transition-all mb-3 group-hover:scale-110" />
+                                   <p className="text-base font-bold text-[#111827] transition-colors">Pilih File Excel</p>
+                                   <p className="text-[11px] text-[#6B7280] font-medium mt-1.5">Format: .xlsx, .xls (Maks: 10MB)</p>
+                                 </>
+                               )}
                             </div>
                          </label>
                       </div>
+
+                      {/* Status feedback */}
+                      {importStatus.kind === 'busy' && (
+                        <div className="mb-6 p-4 rounded-2xl bg-[#EFF4FF] border border-[#DBEAFE] text-[#1E40AF] flex items-center gap-3">
+                          <div className="w-4 h-4 border-2 border-[#1D4ED8]/30 border-t-[#1D4ED8] rounded-full animate-spin" />
+                          <p className="text-[12px] font-bold">Memproses {importStatus.filename}…</p>
+                        </div>
+                      )}
+                      {importStatus.kind === 'done' && (
+                        <div className="mb-6 p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-left">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle size={18} className="text-emerald-600" />
+                            <p className="text-[12px] font-black uppercase tracking-widest text-emerald-700">Import Selesai</p>
+                          </div>
+                          <p className="text-[12px] text-emerald-800 font-medium">
+                            <strong>{importStatus.imported}</strong> baris diproses
+                            {importStatus.failed > 0 && <>, <strong>{importStatus.failed}</strong> gagal</>}
+                            {' '}dari file <em>{importStatus.filename}</em>.
+                          </p>
+                          {importStatus.errors.length > 0 && (
+                            <details className="mt-3">
+                              <summary className="text-[11px] font-bold text-emerald-700 cursor-pointer">Lihat detail kesalahan</summary>
+                              <ul className="mt-2 text-[11px] text-emerald-800 list-disc list-inside space-y-1 max-h-32 overflow-y-auto">
+                                {importStatus.errors.slice(0, 20).map((err, i) => (<li key={i}>{err}</li>))}
+                              </ul>
+                            </details>
+                          )}
+                        </div>
+                      )}
+                      {importStatus.kind === 'error' && (
+                        <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+                          <AlertTriangle size={18} className="text-rose-600 flex-shrink-0" />
+                          <p className="text-[12px] font-bold text-rose-700">{importStatus.message}</p>
+                        </div>
+                      )}
 
                       <div className="bg-[#F9FAFB] rounded-2xl p-7 mb-8 text-left border border-[#E5E7EB]">
                          <h4 className="text-xs font-bold text-[#111827] uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -879,7 +1294,15 @@ export default function App() {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                         <button className="quantum-button w-full">
+                         <button
+                           type="button"
+                           onClick={() => pendingImportFile && processImportFile(pendingImportFile)}
+                           disabled={!pendingImportFile || importStatus.kind === 'busy'}
+                           className="quantum-button w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                         >
+                           {importStatus.kind === 'busy' && (
+                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                           )}
                            Mulai Proses Import
                          </button>
                          <button
@@ -892,6 +1315,59 @@ export default function App() {
                          </button>
                       </div>
                    </div>
+                </div>
+
+                {/* Archive section — list of past imports */}
+                <div className="quantum-card p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-11 h-11 bg-[#EFF4FF] text-[#1D4ED8] rounded-xl flex items-center justify-center">
+                      <Archive size={22} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Arsip Import</h3>
+                      <p className="text-[12px] text-[#6B7280] font-normal">Riwayat batch import — pulihkan snapshot kapan saja.</p>
+                    </div>
+                  </div>
+
+                  {archives.length === 0 ? (
+                    <div className="py-10 text-center text-[12px] text-[#9CA3AF] font-medium">
+                      Belum ada arsip. Setiap import yang sukses akan tercatat otomatis di sini.
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-[#E5E7EB]">
+                      {archives.map((a) => (
+                        <li key={a.id} className="py-4 flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-[#F9FAFB] flex items-center justify-center text-[#1D4ED8] flex-shrink-0">
+                            <FileSpreadsheet size={18} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-bold text-[#111827] truncate">{a.filename}</p>
+                            <p className="text-[11px] text-[#6B7280] font-medium">
+                              {new Date(a.created_at).toLocaleString('id-ID')} &middot;{' '}
+                              <span className="text-emerald-600 font-bold">{a.imported} OK</span>
+                              {a.failed > 0 && <> &middot; <span className="text-rose-600 font-bold">{a.failed} gagal</span></>}
+                              {' '}&middot; total {a.total_after} siswa
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleRestoreArchive(a.id)}
+                            className="px-3 py-2 bg-[#EFF4FF] text-[#1D4ED8] text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-[#DBEAFE] transition-all flex items-center gap-1.5"
+                            title="Pulihkan snapshot"
+                          >
+                            <RotateCcw size={12} />
+                            Pulihkan
+                          </button>
+                          <button
+                            onClick={() => handleDeleteArchive(a.id)}
+                            className="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all"
+                            title="Hapus arsip"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -1110,10 +1586,255 @@ export default function App() {
                     className="quantum-button w-full flex items-center justify-center gap-3"
                    >
                       {isLoading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                      <Save size={16} />
                       Simpan Semua Perubahan
                    </button>
 
                 </div>
+              </motion.div>
+            )}
+
+            {adminTab === 'maintenance' && (
+              <motion.div
+                key="maintenance"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8 max-w-5xl"
+              >
+                {/* Health & Environment */}
+                <div className="quantum-card p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                        <Activity size={22} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Status &amp; Kesehatan Sistem</h3>
+                        <p className="text-[12px] text-[#6B7280] font-normal">Monitor backend, domain aktif, dan kapasitas penyimpanan lokal.</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleHealthCheck}
+                      className="px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all flex items-center gap-2 border-b-4 border-emerald-100"
+                    >
+                      <RefreshCw size={12} />
+                      Refresh
+                    </button>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="p-5 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Domain Aktif</p>
+                      <p className="text-[13px] font-bold text-[#111827] break-all">{healthInfo?.app_url || (typeof window !== 'undefined' ? window.location.origin : '-')}</p>
+                    </div>
+                    <div className="p-5 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Status Backend</p>
+                      <p className={`text-[13px] font-bold flex items-center gap-2 ${healthInfo?._fromLocal === false ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        <span className={`w-2 h-2 rounded-full ${healthInfo?._fromLocal === false ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                        {healthInfo?._fromLocal === false ? 'Online' : 'Tidak Terhubung (Mode Lokal)'}
+                      </p>
+                    </div>
+                    <div className="p-5 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Data Siswa Lokal</p>
+                      <p className="text-[13px] font-bold text-[#111827]">{statsData.total} siswa &middot; {statsData.lulus} lulus</p>
+                    </div>
+                    <div className="p-5 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Penggunaan localStorage</p>
+                      <p className="text-[13px] font-bold text-[#111827]">{storageFootprint.totalKB} KB &middot; {storageFootprint.keys.length} kunci</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* One-click setup */}
+                <div className="quantum-card p-8">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-11 h-11 bg-[#EFF4FF] text-[#1D4ED8] rounded-xl flex items-center justify-center">
+                      <ServerCog size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Setup Otomatis Server</h3>
+                      <p className="text-[12px] text-[#6B7280] font-normal">Jalankan migrasi, storage:link, dan clear cache dengan satu klik (tanpa Terminal).</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-[12px] leading-relaxed font-medium flex gap-3">
+                    <Info size={16} className="mt-0.5 flex-shrink-0" />
+                    <div>
+                      <strong>Hanya untuk environment dengan backend Laravel.</strong> Tombol ini memanggil <code className="px-1 py-0.5 bg-white rounded font-mono text-[11px]">/api/deploy/setup?token=…</code>.
+                      Pada Replit (frontend-only) endpoint ini akan menampilkan pesan tidak tersedia — itu wajar.
+                      Pada cPanel, set <code className="font-mono text-[11px]">DEPLOY_TOKEN</code> di file <code className="font-mono text-[11px]">.env</code>, lalu masukkan token yang sama di sini.
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid md:grid-cols-[1fr_auto] gap-3 items-end">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-semibold text-[#111827] px-1">DEPLOY_TOKEN</label>
+                      <input
+                        type="password"
+                        className="settings-input"
+                        placeholder="Masukkan deploy token…"
+                        value={deployToken}
+                        onChange={(e) => setDeployToken(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <button
+                      onClick={handleRunSetup}
+                      disabled={deployBusy || !deployToken.trim()}
+                      className="quantum-button h-[50px] px-6 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {deployBusy
+                        ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        : <ServerCog size={16} />}
+                      Jalankan Setup
+                    </button>
+                  </div>
+
+                  {deployResult && (
+                    <div className={`mt-5 p-5 rounded-2xl border ${deployResult.success ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                      <p className={`text-[11px] font-black uppercase tracking-widest mb-2 ${deployResult.success ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {deployResult.success ? 'Setup Berhasil' : 'Setup Gagal'}
+                      </p>
+                      <p className={`text-[12px] font-medium ${deployResult.success ? 'text-emerald-800' : 'text-rose-800'}`}>{deployResult.message}</p>
+                      {deployResult.steps && (
+                        <ul className="mt-3 space-y-1 text-[11px] font-mono text-slate-600">
+                          {Object.entries(deployResult.steps).map(([k, v]: [string, any]) => (
+                            <li key={k} className="flex gap-2">
+                              <span className={v?.ok ? 'text-emerald-600' : 'text-rose-600'}>{v?.ok ? '✓' : '✗'}</span>
+                              <span>{k}: {v?.message ?? (v?.ok ? 'OK' : 'failed')}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Data Lokal */}
+                <div className="quantum-card p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-11 h-11 bg-[#EFF4FF] text-[#1D4ED8] rounded-xl flex items-center justify-center">
+                      <HardDrive size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Backup &amp; Data Lokal</h3>
+                      <p className="text-[12px] text-[#6B7280] font-normal">Cadangkan, pulihkan, atau bersihkan data yang tersimpan di browser.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    <button
+                      onClick={handleDownloadBackup}
+                      className="p-5 rounded-2xl bg-[#EFF4FF] hover:bg-[#DBEAFE] text-[#1D4ED8] transition-all text-left border border-[#DBEAFE]"
+                    >
+                      <Download size={20} className="mb-2" />
+                      <p className="text-[12px] font-black uppercase tracking-widest">Download Backup</p>
+                      <p className="text-[11px] font-medium mt-1 opacity-80">JSON snapshot lengkap.</p>
+                    </button>
+                    <button
+                      onClick={handleResetIntegrityPact}
+                      className="p-5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-700 transition-all text-left border border-amber-200"
+                    >
+                      <Shield size={20} className="mb-2" />
+                      <p className="text-[12px] font-black uppercase tracking-widest">Reset Pakta Integritas</p>
+                      <p className="text-[11px] font-medium mt-1 opacity-80">Tampilkan ulang modal persetujuan.</p>
+                    </button>
+                    <button
+                      onClick={handleClearAllLocal}
+                      className="p-5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 transition-all text-left border border-rose-200"
+                    >
+                      <Trash2 size={20} className="mb-2" />
+                      <p className="text-[12px] font-black uppercase tracking-widest">Hapus Semua Lokal</p>
+                      <p className="text-[11px] font-medium mt-1 opacity-80">Wipe siswa, pengaturan, arsip.</p>
+                    </button>
+                  </div>
+
+                  <div className="mt-6 p-4 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-3">Rincian Penyimpanan</p>
+                    {storageFootprint.keys.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 font-medium">Belum ada data tersimpan.</p>
+                    ) : (
+                      <ul className="text-[11px] text-slate-600 space-y-1 font-mono">
+                        {storageFootprint.keys.map((k) => (
+                          <li key={k.key} className="flex justify-between gap-4">
+                            <span className="truncate">{k.key}</span>
+                            <span className="text-slate-400 flex-shrink-0">{(k.size / 1024).toFixed(2)} KB</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                {/* Audit log */}
+                <div className="quantum-card p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 bg-[#EFF4FF] text-[#1D4ED8] rounded-xl flex items-center justify-center">
+                        <History size={22} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Audit Log</h3>
+                        <p className="text-[12px] text-[#6B7280] font-normal">200 aktivitas terakhir di portal admin.</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { auditLog.clear(); refreshMaintenancePanels(); showToast('success', 'Audit log dikosongkan.'); }}
+                      className="px-4 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center gap-2"
+                    >
+                      <Trash2 size={12} />
+                      Hapus Log
+                    </button>
+                  </div>
+
+                  {auditEntries.length === 0 ? (
+                    <p className="py-10 text-center text-[12px] text-slate-400 font-medium">Belum ada aktivitas tercatat.</p>
+                  ) : (
+                    <ul className="divide-y divide-[#E5E7EB] max-h-80 overflow-y-auto">
+                      {auditEntries.map((e) => (
+                        <li key={e.id} className="py-3 flex items-start gap-3 text-[12px]">
+                          <span className={`mt-0.5 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest flex-shrink-0 ${
+                            e.actor === 'admin' ? 'bg-blue-100 text-blue-700' :
+                            e.actor === 'public' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                          }`}>{e.actor}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-[#111827]">{e.action}{e.target != null && <> &middot; <span className="font-mono text-slate-500">{String(e.target)}</span></>}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">{new Date(e.at).toLocaleString('id-ID')}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Footer credit */}
+                <div className="text-center text-[11px] text-slate-400 font-medium pt-4">
+                  <p className="flex items-center justify-center gap-1.5">
+                    Dibuat dengan <Heart size={11} className="text-rose-400 fill-rose-400" /> oleh <strong className="text-slate-600">TIM IT SKANSAGIRI</strong> &middot; Powered by <strong className="text-slate-600">Joben Enterprise</strong>
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Toast */}
+          <AnimatePresence>
+            {toast && (
+              <motion.div
+                initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                className={`fixed bottom-6 right-6 z-[110] px-5 py-4 rounded-2xl shadow-2xl border flex items-center gap-3 max-w-sm ${
+                  toast.type === 'success' ? 'bg-emerald-500 text-white border-emerald-600' :
+                  toast.type === 'error'   ? 'bg-rose-500 text-white border-rose-600' :
+                                             'bg-slate-800 text-white border-slate-900'
+                }`}
+              >
+                {toast.type === 'success' ? <CheckCircle size={18} /> :
+                 toast.type === 'error'   ? <AlertTriangle size={18} /> :
+                                            <Info size={18} />}
+                <p className="text-[12px] font-bold leading-snug">{toast.msg}</p>
               </motion.div>
             )}
           </AnimatePresence>
