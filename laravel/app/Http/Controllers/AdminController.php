@@ -151,51 +151,107 @@ class AdminController extends Controller
 
     /**
      * Update Portal Settings
+     *
+     * Hardened against the common "Gagal menyimpan" failure modes:
+     *   1. Validation errors now return the real Laravel message (HTTP 422)
+     *      instead of a vague 500 so the React layer can surface what is wrong.
+     *   2. The Setting table is a (key, value) store — the writer accepts only
+     *      keys listed in {@see \App\Models\Setting::ALLOWED_KEYS} so a stray
+     *      input from the form cannot blow up the unique-key constraint.
+     *   3. Booleans are normalised before insert (HTML forms send "1"/"0"
+     *      strings, not real booleans).
+     *   4. File uploads are wrapped in a try/catch so a missing
+     *      `php artisan storage:link` on cPanel returns a useful message.
+     *   5. Both the alias `principal_motivation` and the canonical
+     *      `motivation_message` are accepted, so existing forms keep working.
      */
     public function updateSettings(Request $request)
     {
-        $request->validate([
-            'announcement_date'  => 'nullable|date',
-            'announcement_time'  => 'nullable',
-            'school_name'        => 'nullable|string',
-            'school_npsn'        => 'nullable|string',
-            'school_address'     => 'nullable|string',
-            'principal_name'     => 'nullable|string',
-            'maintenance_mode'   => 'nullable|boolean',
-            'motivation_message' => 'nullable|string|max:2000',
-            'logo'               => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
-            'principal_photo'    => 'nullable|image|mimes:jpeg,png,jpg|max:4096',
+        try {
+            $validated = $request->validate([
+                'announcement_date'    => 'nullable|date',
+                'announcement_time'    => 'nullable|string',
+                'school_name'          => 'nullable|string|max:255',
+                'school_npsn'          => 'nullable|string|max:32',
+                'school_address'       => 'nullable|string|max:500',
+                'principal_name'       => 'nullable|string|max:255',
+                'maintenance_mode'     => 'nullable',
+                'motivation_message'   => 'nullable|string|max:2000',
+                'principal_motivation' => 'nullable|string|max:2000', // alias
+                'logo'                 => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
+                'principal_photo'      => 'nullable|image|mimes:jpeg,png,jpg|max:4096',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal: ' . collect($e->errors())->flatten()->first(),
+                'errors'  => $e->errors(),
+            ], 422);
+        }
+
+        // Accept the legacy alias `principal_motivation` as well
+        if (array_key_exists('principal_motivation', $validated)) {
+            $validated['motivation_message'] = $validated['principal_motivation'];
+            unset($validated['principal_motivation']);
+        }
+
+        // Normalise booleans (forms POST "1"/"0", JSON sends true/false)
+        if (array_key_exists('maintenance_mode', $validated)) {
+            $validated['maintenance_mode'] = filter_var(
+                $validated['maintenance_mode'],
+                FILTER_VALIDATE_BOOLEAN
+            ) ? '1' : '0';
+        }
+
+        try {
+            // Persist scalar settings (whitelist enforced)
+            foreach ($validated as $key => $value) {
+                if (!in_array($key, Setting::ALLOWED_KEYS, true)) {
+                    continue; // silently drop unknown keys
+                }
+                Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+            }
+
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+
+            // Logo upload
+            if ($request->hasFile('logo')) {
+                $old = Setting::where('key', 'school_logo')->first();
+                if ($old && $old->value) {
+                    $disk->delete($old->value);
+                }
+                $path = $request->file('logo')->store('branding', 'public');
+                Setting::updateOrCreate(['key' => 'school_logo'], ['value' => $path]);
+            }
+
+            // Principal photo upload
+            if ($request->hasFile('principal_photo')) {
+                $old = Setting::where('key', 'principal_photo')->first();
+                if ($old && $old->value) {
+                    $disk->delete($old->value);
+                }
+                $path = $request->file('principal_photo')->store('principal', 'public');
+                Setting::updateOrCreate(['key' => 'principal_photo'], ['value' => $path]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('updateSettings failed', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan pengaturan. ' .
+                             'Pastikan folder storage & bootstrap/cache writable (chmod 775) ' .
+                             'dan symlink "php artisan storage:link" sudah dibuat. ' .
+                             'Detail: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengaturan berhasil diperbarui',
         ]);
-
-        $data = $request->except(['logo', 'principal_photo']);
-
-        foreach ($data as $key => $value) {
-            Setting::updateOrCreate(['key' => $key], ['value' => $value]);
-        }
-
-        // Logo upload
-        if ($request->hasFile('logo')) {
-            $oldLogo = Setting::where('key', 'school_logo')->first();
-            if ($oldLogo && $oldLogo->value) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($oldLogo->value);
-            }
-
-            $path = $request->file('logo')->store('branding', 'public');
-            Setting::updateOrCreate(['key' => 'school_logo'], ['value' => $path]);
-        }
-
-        // Principal photo upload
-        if ($request->hasFile('principal_photo')) {
-            $oldPhoto = Setting::where('key', 'principal_photo')->first();
-            if ($oldPhoto && $oldPhoto->value) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPhoto->value);
-            }
-
-            $path = $request->file('principal_photo')->store('principal', 'public');
-            Setting::updateOrCreate(['key' => 'principal_photo'], ['value' => $path]);
-        }
-
-        return response()->json(['success' => true, 'message' => 'Pengaturan berhasil diperbarui']);
     }
 
     /**

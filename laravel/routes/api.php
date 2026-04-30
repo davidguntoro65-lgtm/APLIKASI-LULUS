@@ -5,6 +5,7 @@
  */
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\DeployController;
 use App\Http\Controllers\GraduationController;
 use App\Http\Controllers\PublicController;
 use Illuminate\Support\Facades\Route;
@@ -26,3 +27,17 @@ Route::prefix('admin')->group(function () {
     Route::post('/import', [AdminController::class, 'importExcel']);
     Route::post('/reset-tracking/{id?}', [AdminController::class, 'resetTracking']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| One-click Deployment endpoints (cPanel-friendly)
+|--------------------------------------------------------------------------
+| These let the operator finish a fresh install without opening a terminal:
+|   GET  /api/deploy/health                   → liveness + APP_URL check
+|   GET  /api/deploy/setup?token=DEPLOY_TOKEN → run migrate + storage:link +
+|                                                config/route clear in one go
+| The setup endpoint is rate-limited so the token cannot be brute-forced.
+*/
+Route::get('/deploy/health', [DeployController::class, 'health']);
+Route::match(['get', 'post'], '/deploy/setup', [DeployController::class, 'setup'])
+    ->middleware('throttle:5,1');

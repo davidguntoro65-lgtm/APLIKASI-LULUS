@@ -6,6 +6,14 @@ Sistem informasi pengumuman kelulusan siswa SMKN 1 Wonogiri Tahun Pelajaran 2025
 
 Frontend-only React + TypeScript single-page app built with Vite and Tailwind CSS v4. The repository also contains a `laravel/` directory with reference PHP controllers, models, migrations, and routes that document the intended backend API shape, but no Laravel runtime is installed or wired up. The frontend gracefully falls back to built-in mock data when the API endpoints (e.g. `/api/school-info`, `/api/admin/stats`) return errors, so the app works standalone.
 
+## Multi-Domain / Portability
+
+The app is deliberately built to be **drop-in portable** between Replit, cPanel shared hosting, and custom domains — no source edits required when migrating.
+
+- **Frontend**: every `fetch()` call uses a relative path (`/api/...`), so it automatically targets `window.location.origin`. Asset URLs from the backend are normalised through `resolveAssetUrl()` (in `src/App.tsx`) which accepts either an absolute URL (when the backend already wrapped it via `Storage::url()`) or a raw relative path — preventing the classic `/storage/https://...` double-prefix bug.
+- **Backend** (`laravel/`): all asset URLs are produced via `Setting::publicUrl()` → `Storage::disk('public')->url()`, which derives its host from `APP_URL` in `.env`. `config/cors.php` allows requests from any origin.
+- **One-click deploy**: `GET /api/deploy/setup?token=<DEPLOY_TOKEN>` runs `migrate --force`, `storage:link`, `config:clear`, and `route:clear` in a single request — so a fresh cPanel install does not require terminal access. See `laravel/DEPLOYMENT.md` for the full runbook.
+
 ## Tech Stack
 
 - React 19 + TypeScript

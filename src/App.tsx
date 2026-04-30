@@ -36,6 +36,34 @@ const formatBirthDate = (iso?: string | null): string => {
   return `${d} ${ID_MONTHS[m - 1] ?? m} ${y}`;
 };
 
+/**
+ * Resolve a stored asset path into a fully-qualified URL that works on **any**
+ * domain the app is deployed to (Replit, cPanel, custom domain, …).
+ *
+ * Backend may return either:
+ *   • an absolute URL  → `https://example.com/storage/branding/logo.png`
+ *     (e.g. when the API uses `Storage::disk('public')->url(...)` /
+ *     `asset('storage/...')`).
+ *   • a raw relative path → `branding/logo.png`
+ *   • a data URL preview  → `data:image/png;base64,…`
+ *
+ * In all cases this returns something the browser can render without manual
+ * domain configuration.
+ */
+const resolveAssetUrl = (raw?: string | null): string | null => {
+  if (!raw) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+  // Already absolute (http, https, protocol-relative) or inline data URL → use as-is
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value;
+  }
+  // Already rooted at /storage → use as-is
+  if (value.startsWith('/storage/')) return value;
+  // Otherwise treat as relative storage path → prepend /storage/
+  return `/storage/${value.replace(/^\/+/, '')}`;
+};
+
 /** "Wonogiri, 26 Mei 2008" */
 const formatInlineBirth = (place?: string | null, iso?: string | null): string => {
   const p = (place ?? '').trim();
@@ -892,7 +920,7 @@ export default function App() {
                               <div className="w-full h-48 bg-[#F9FAFB] border-2 border-dashed border-[#DBEAFE] rounded-2xl overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-[#1D4ED8] group-hover:bg-white relative">
                                  {(logoPreview || schoolLogo) ? (
                                     <img 
-                                      src={logoPreview || `/storage/${schoolLogo}`} 
+                                      src={logoPreview || resolveAssetUrl(schoolLogo) || ''} 
                                       className="w-full h-full object-contain p-4" 
                                       alt="Preview Logo" 
                                     />
@@ -981,7 +1009,7 @@ export default function App() {
                                <div className="w-full aspect-[3/4] bg-[#F9FAFB] border border-[#DBEAFE] rounded-xl overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-[#1D4ED8] relative">
                                  {(principalPhotoPreview || principalPhoto) ? (
                                     <img
-                                       src={principalPhotoPreview || `/storage/${principalPhoto}`}
+                                       src={principalPhotoPreview || resolveAssetUrl(principalPhoto) || ''}
                                        className="w-full h-full object-cover"
                                        alt="Foto Kepala Sekolah"
                                     />
@@ -1211,7 +1239,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 bg-[#1D4ED8] rounded-xl flex items-center justify-center overflow-hidden shadow-[0_8px_20px_-8px_rgba(29,78,216,0.6)]">
              {schoolInfo?.school_logo ? (
-                <img src={schoolInfo.school_logo} className="w-full h-full object-contain p-1.5" alt="Logo" />
+                <img src={resolveAssetUrl(schoolInfo.school_logo) || ''} className="w-full h-full object-contain p-1.5" alt="Logo" />
              ) : (
                 <GraduationCap size={22} className="text-white" strokeWidth={2.5} />
              )}
@@ -1503,7 +1531,7 @@ export default function App() {
                       <div className="flex items-center gap-3">
                         {schoolLogo ? (
                           <img
-                            src={`/storage/${schoolLogo}`}
+                            src={resolveAssetUrl(schoolLogo) || ''}
                             alt="Logo Sekolah"
                             className="w-9 h-9 object-contain bg-white rounded-md p-1"
                           />
@@ -1683,7 +1711,7 @@ export default function App() {
                 <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-[#DBEAFE] bg-white overflow-hidden flex items-center justify-center">
                   {(principalPhotoPreview || principalPhoto) ? (
                     <img
-                      src={principalPhotoPreview || `/storage/${principalPhoto}`}
+                      src={principalPhotoPreview || resolveAssetUrl(principalPhoto) || ''}
                       alt={principalName || 'Kepala Sekolah'}
                       className="w-full h-full object-cover"
                     />
