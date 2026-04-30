@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download } from 'lucide-react';
+import { Search, GraduationCap, CheckCircle, XCircle, FileText, User, Calendar, BookOpen, Building2, LayoutDashboard, Database, Settings, LogOut, ArrowRight, TrendingUp, Download, Lock, ShieldCheck, Activity, Sparkles, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -197,6 +197,14 @@ export default function App() {
   const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  // Principal photo + motivational message (Manajemen Konten)
+  const [principalPhoto, setPrincipalPhoto] = useState<string | null>(null);
+  const [principalPhotoFile, setPrincipalPhotoFile] = useState<File | null>(null);
+  const [principalPhotoPreview, setPrincipalPhotoPreview] = useState<string | null>(null);
+  const [motivationMessage, setMotivationMessage] = useState<string>(
+    "Selamat kepada seluruh siswa-siswi SMKN 1 Wonogiri. Teruslah berkarya, berinovasi, dan menjadi generasi unggul yang membanggakan."
+  );
 
   // Public Identity State
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
@@ -401,6 +409,10 @@ export default function App() {
        if (logoFile) {
          formData.append('logo', logoFile);
        }
+       if (principalPhotoFile) {
+         formData.append('principal_photo', principalPhotoFile);
+       }
+       formData.append('motivation_message', motivationMessage);
 
        const resp = await fetch('/api/admin/settings', {
          method: 'POST',
@@ -454,15 +466,15 @@ export default function App() {
     return (
       <div className="min-h-screen flex bg-slate-50 font-sans">
         {/* Sidebar */}
-        <aside className="w-72 bg-[#0f172a] text-white flex flex-col no-print">
-          <div className="p-8 border-b border-white/5">
+        <aside className="w-72 bg-[#111827] text-white flex flex-col no-print">
+          <div className="p-7 border-b border-white/5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 bg-amber-400 rounded-lg flex items-center justify-center">
-                 <LayoutDashboard size={18} className="text-[#0f172a]" />
+              <div className="w-9 h-9 bg-[#1D4ED8] rounded-xl flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(29,78,216,0.7)]">
+                 <LayoutDashboard size={18} className="text-white" />
               </div>
-              <h1 className="font-black tracking-tighter text-lg">PORTAL ADMIN</h1>
+              <h1 className="font-extrabold tracking-tight text-base">Portal Admin</h1>
             </div>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">TIM IT SKANSAGIRI</p>
+            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest">TIM IT SKANSAGIRI</p>
           </div>
           
           <nav className="flex-1 p-4 space-y-2">
@@ -547,7 +559,7 @@ export default function App() {
                     { label: 'Total Siswa', value: statsData.total, icon: User, color: 'text-blue-500', bg: 'bg-blue-50' },
                     { label: 'Siswa Lulus', value: statsData.lulus, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50' },
                     { label: 'Belum Lulus', value: statsData.tidakLulus, icon: XCircle, color: 'text-rose-500', bg: 'bg-rose-50' },
-                    { label: 'Data Dicek', value: statsData.checked || 0, icon: Search, color: 'text-amber-500', bg: 'bg-amber-50' },
+                    { label: 'Data Dicek', value: statsData.checked || 0, icon: Search, color: 'text-[#1D4ED8]', bg: 'bg-[#EFF4FF]' },
                   ].map((stat, i) => (
                     <motion.div 
                       key={i} 
@@ -618,7 +630,7 @@ export default function App() {
                     <h3 className="font-black text-slate-800 tracking-tight text-xl mb-6">Waktu Pengumuman</h3>
                     <div className="space-y-6">
                        <div className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100">
-                          <p className="text-[10px] font-black uppercase text-amber-500 tracking-[0.2em] mb-4">Pengaturan Aktif</p>
+                          <p className="text-[10px] font-bold uppercase text-[#1D4ED8] tracking-[0.2em] mb-4">Pengaturan Aktif</p>
                           <div className="space-y-4">
                              <div className="flex items-center gap-4 text-slate-700">
                                 <Calendar size={18} className="text-slate-400" />
@@ -656,7 +668,7 @@ export default function App() {
                     <input 
                        type="text" 
                        placeholder="Cari Nama Siswa atau NISN..." 
-                       className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-amber-400 transition-all outline-none text-sm font-bold text-slate-800 placeholder:text-slate-300 shadow-inner"
+                       className="w-full pl-14 pr-6 py-4 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#1D4ED8]/10 transition-all outline-none text-sm font-medium text-[#111827] placeholder:text-[#9CA3AF]"
                        value={adminSearch}
                        onChange={(e) => setAdminSearch(e.target.value)}
                     />
@@ -735,41 +747,41 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="max-w-3xl mx-auto"
               >
-                <div className="bg-white p-12 rounded-[56px] border border-slate-100 shadow-2xl text-center relative overflow-hidden">
+                <div className="quantum-card p-10 sm:p-12 text-center relative overflow-hidden">
                    {/* Background element */}
-                   <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#EFF4FF] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                    
                    <div className="relative z-10">
-                      <div className="w-24 h-24 bg-blue-600 text-white rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-blue-200 rotate-6 transform transition-transform hover:rotate-0 cursor-default">
-                         <Database size={44} />
+                      <div className="w-20 h-20 bg-[#1D4ED8] text-white rounded-2xl flex items-center justify-center mx-auto mb-7 shadow-[0_16px_36px_-12px_rgba(29,78,216,0.55)]">
+                         <Database size={36} />
                       </div>
-                      <h3 className="text-3xl font-black text-slate-800 tracking-tight mb-3">Update Data Siswa</h3>
-                      <p className="text-slate-400 text-sm font-medium mb-12 max-w-sm mx-auto">Import data massal dari Excel untuk memperbarui status kelulusan siswa secara akurat.</p>
+                      <h3 className="text-3xl font-extrabold text-[#111827] tracking-tight mb-2">Update Data Siswa</h3>
+                      <p className="text-[#6B7280] text-sm font-normal mb-10 max-w-sm mx-auto">Import data massal dari Excel untuk memperbarui status kelulusan siswa secara akurat.</p>
                       
-                      <div className="border-4 border-dashed border-slate-100 rounded-[48px] p-12 mb-10 hover:border-amber-400 transition-all group cursor-pointer bg-slate-50/50 hover:bg-white relative overflow-hidden">
+                      <div className="border-2 border-dashed border-[#DBEAFE] rounded-2xl p-12 mb-10 hover:border-[#1D4ED8] transition-all group cursor-pointer bg-[#F9FAFB] hover:bg-[#EFF4FF]/30 relative overflow-hidden">
                          <label className="cursor-pointer block">
                             <input type="file" className="hidden" onChange={handleImportFile} accept=".xlsx,.xls" />
                             <div className="relative z-10">
-                               <FileText size={48} className="mx-auto text-slate-200 group-hover:text-amber-400 transition-all mb-4 group-hover:scale-110" />
-                               <p className="text-lg font-black text-slate-400 group-hover:text-slate-800 transition-colors uppercase tracking-widest leading-none">Pilih File Excel</p>
-                               <p className="text-[10px] text-slate-300 font-bold mt-2 uppercase tracking-wide">Format: .xlsx, .xls (Maks: 10MB)</p>
+                               <FileText size={44} className="mx-auto text-[#9CA3AF] group-hover:text-[#1D4ED8] transition-all mb-3 group-hover:scale-110" />
+                               <p className="text-base font-bold text-[#111827] transition-colors">Pilih File Excel</p>
+                               <p className="text-[11px] text-[#6B7280] font-medium mt-1.5">Format: .xlsx, .xls (Maks: 10MB)</p>
                             </div>
                          </label>
                       </div>
 
-                      <div className="bg-slate-50 rounded-3xl p-8 mb-10 text-left border border-slate-100">
-                         <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-                           <Database size={14} className="text-amber-500" />
-                           Struktur Kolom Excel (Wajib):
+                      <div className="bg-[#F9FAFB] rounded-2xl p-7 mb-8 text-left border border-[#E5E7EB]">
+                         <h4 className="text-xs font-bold text-[#111827] uppercase tracking-wider mb-4 flex items-center gap-2">
+                           <Database size={14} className="text-[#1D4ED8]" />
+                           Struktur Kolom Excel (Wajib)
                          </h4>
-                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                             {['nisn', 'name', 'birth_place', 'birth_date', 'class', 'major', 'status'].map((col) => (
-                               <div key={col} className="bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm">
-                                  <code className="text-[10px] font-black text-blue-600">{col}</code>
+                               <div key={col} className="bg-white px-3 py-2 rounded-lg border border-[#E5E7EB]">
+                                  <code className="text-[10px] font-bold text-[#1D4ED8]">{col}</code>
                                </div>
                             ))}
                          </div>
-                         <p className="mt-4 text-[10px] text-slate-400 font-medium leading-relaxed italic">
+                         <p className="mt-4 text-[11px] text-[#6B7280] font-normal leading-relaxed">
                            * birth_place: Kota / Kabupaten kelahiran (mis. Wonogiri).<br/>
                            * birth_date: YYYY-MM-DD, DD/MM/YYYY, "26 Mei 2008" atau format Excel Date.<br/>
                            * major: Konsentrasi Keahlian (mis. Rekayasa Perangkat Lunak).<br/>
@@ -777,17 +789,17 @@ export default function App() {
                          </p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                         <button className="gold-button w-full shadow-2xl shadow-slate-900/10">
-                           MULAI PROSES IMPORT
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                         <button className="quantum-button w-full">
+                           Mulai Proses Import
                          </button>
                          <button
                            type="button"
                            onClick={downloadStudentTemplate}
-                           className="w-full py-4 bg-slate-100 text-slate-500 rounded-[20px] font-black text-xs tracking-widest uppercase hover:bg-slate-200 transition-all border-b-4 border-slate-200 active:border-b-0 flex items-center justify-center gap-2"
+                           className="quantum-button-ghost w-full flex items-center justify-center gap-2"
                          >
                            <Download size={14} />
-                           DOWNLOAD TEMPLATE
+                           Download Template
                          </button>
                       </div>
                    </div>
@@ -803,20 +815,20 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="max-w-4xl"
               >
-                <div className="bg-white p-10 md:p-12 rounded-[40px] border border-slate-100 shadow-sm space-y-12">
+                <div className="quantum-card p-8 md:p-10 space-y-10">
                    {/* School Identity */}
-                   <div className="grid lg:grid-cols-12 gap-12">
+                   <div className="grid lg:grid-cols-12 gap-10">
                       <div className="lg:col-span-4 space-y-6">
-                        <div className="flex items-center gap-4 mb-4">
-                           <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
-                              <Building2 size={24} />
+                        <div className="flex items-center gap-3 mb-2">
+                           <div className="w-11 h-11 bg-[#EFF4FF] text-[#1D4ED8] rounded-xl flex items-center justify-center">
+                              <Building2 size={22} />
                            </div>
-                           <h3 className="text-xl font-black text-slate-800 tracking-tight">Identitas Sekolah</h3>
+                           <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Identitas Sekolah</h3>
                         </div>
                         
                         <div className="space-y-4">
                            <div className="relative group">
-                              <div className="w-full h-48 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-amber-400 group-hover:bg-white relative">
+                              <div className="w-full h-48 bg-[#F9FAFB] border-2 border-dashed border-[#DBEAFE] rounded-2xl overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-[#1D4ED8] group-hover:bg-white relative">
                                  {(logoPreview || schoolLogo) ? (
                                     <img 
                                       src={logoPreview || `/storage/${schoolLogo}`} 
@@ -825,8 +837,8 @@ export default function App() {
                                     />
                                  ) : (
                                     <>
-                                       <FileText size={32} className="text-slate-200 mb-2" />
-                                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logo Sekolah</p>
+                                       <FileText size={28} className="text-[#9CA3AF] mb-2" />
+                                       <p className="text-[11px] font-semibold text-[#6B7280]">Logo Sekolah</p>
                                     </>
                                  )}
                                  <input 
@@ -842,15 +854,15 @@ export default function App() {
                                     }}
                                  />
                               </div>
-                              <p className="text-[9px] text-slate-400 font-bold mt-2 text-center uppercase tracking-widest">Klik untuk ganti logo</p>
+                              <p className="text-[11px] text-[#6B7280] font-medium mt-2 text-center">Klik untuk ganti logo</p>
                            </div>
                         </div>
                       </div>
 
-                      <div className="lg:col-span-8 space-y-6">
-                         <div className="grid sm:grid-cols-2 gap-6">
-                            <div className="space-y-1">
-                               <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Nama Sekolah</label>
+                      <div className="lg:col-span-8 space-y-5">
+                         <div className="grid sm:grid-cols-2 gap-5">
+                            <div className="space-y-1.5">
+                               <label className="text-[11px] font-semibold text-[#111827] px-1">Nama Sekolah</label>
                                <input 
                                  type="text"
                                  className="settings-input"
@@ -858,8 +870,8 @@ export default function App() {
                                  onChange={(e) => setSchoolName(e.target.value)}
                                />
                             </div>
-                            <div className="space-y-1">
-                               <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">NPSN</label>
+                            <div className="space-y-1.5">
+                               <label className="text-[11px] font-semibold text-[#111827] px-1">NPSN</label>
                                <input 
                                  type="text"
                                  className="settings-input"
@@ -868,16 +880,16 @@ export default function App() {
                                />
                             </div>
                          </div>
-                         <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Alamat Sekolah</label>
+                         <div className="space-y-1.5">
+                            <label className="text-[11px] font-semibold text-[#111827] px-1">Alamat Sekolah</label>
                             <textarea 
-                              className="settings-input h-24 resize-none pt-4"
+                              className="settings-input h-24 resize-none"
                               value={schoolAddress}
                               onChange={(e) => setSchoolAddress(e.target.value)}
                             />
                          </div>
-                         <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Nama Kepala Sekolah</label>
+                         <div className="space-y-1.5">
+                            <label className="text-[11px] font-semibold text-[#111827] px-1">Nama Kepala Sekolah</label>
                             <input 
                               type="text"
                               className="settings-input"
@@ -888,17 +900,83 @@ export default function App() {
                       </div>
                    </div>
 
-                   {/* Schedule */}
-                   <div className="pt-12 border-t border-slate-100">
-                      <div className="flex items-center gap-4 mb-8">
-                         <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center">
-                            <Calendar size={24} />
+                   {/* Manajemen Konten — Kepala Sekolah & Motivasi */}
+                   <div className="pt-10 border-t border-[#E5E7EB]">
+                      <div className="flex items-center gap-3 mb-6">
+                         <div className="w-11 h-11 bg-[#EFF4FF] text-[#1D4ED8] rounded-xl flex items-center justify-center">
+                            <Quote size={22} />
                          </div>
-                         <h3 className="text-xl font-black text-slate-800 tracking-tight">Jadwal & Preferensi</h3>
+                         <div>
+                            <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Manajemen Konten</h3>
+                            <p className="text-[12px] text-[#6B7280] font-normal">Foto Kepala Sekolah & Pesan Motivasi</p>
+                         </div>
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-8 mb-8">
-                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Tanggal Rilis</label>
+
+                      <div className="grid lg:grid-cols-12 gap-6">
+                         {/* Foto Kepala Sekolah — thin elegant blue border */}
+                         <div className="lg:col-span-4 module-card-blue">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1D4ED8] mb-3">Foto Kepala Sekolah</p>
+                            <div className="relative group">
+                               <div className="w-full aspect-[3/4] bg-[#F9FAFB] border border-[#DBEAFE] rounded-xl overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-[#1D4ED8] relative">
+                                 {(principalPhotoPreview || principalPhoto) ? (
+                                    <img
+                                       src={principalPhotoPreview || `/storage/${principalPhoto}`}
+                                       className="w-full h-full object-cover"
+                                       alt="Foto Kepala Sekolah"
+                                    />
+                                 ) : (
+                                    <>
+                                       <User size={32} className="text-[#9CA3AF] mb-2" strokeWidth={1.5} />
+                                       <p className="text-[11px] font-semibold text-[#6B7280]">Unggah Foto</p>
+                                    </>
+                                 )}
+                                 <input
+                                    type="file"
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                       const file = e.target.files?.[0];
+                                       if (file) {
+                                          setPrincipalPhotoFile(file);
+                                          setPrincipalPhotoPreview(URL.createObjectURL(file));
+                                       }
+                                    }}
+                                 />
+                               </div>
+                               <p className="text-[11px] text-[#6B7280] font-medium mt-2 text-center">Format JPG/PNG, rasio 3:4</p>
+                            </div>
+                         </div>
+
+                         {/* Pesan Motivasi */}
+                         <div className="lg:col-span-8 module-card-blue">
+                            <div className="flex items-center justify-between mb-3">
+                               <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1D4ED8]">Pesan Motivasi Kepala Sekolah</p>
+                               <span className="text-[11px] font-medium text-[#6B7280]">{motivationMessage.length} karakter</span>
+                            </div>
+                            <textarea
+                               className="settings-input h-44 resize-none leading-relaxed"
+                               value={motivationMessage}
+                               onChange={(e) => setMotivationMessage(e.target.value)}
+                               placeholder="Tuliskan pesan motivasi atau sambutan yang akan ditampilkan kepada siswa di halaman utama..."
+                            />
+                            <p className="text-[11px] text-[#6B7280] font-normal mt-2">
+                               Pesan ini akan tampil sebagai sambutan resmi di halaman publik.
+                            </p>
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* Schedule */}
+                   <div className="pt-10 border-t border-[#E5E7EB]">
+                      <div className="flex items-center gap-3 mb-6">
+                         <div className="w-11 h-11 bg-[#EFF4FF] text-[#1D4ED8] rounded-xl flex items-center justify-center">
+                            <Calendar size={22} />
+                         </div>
+                         <h3 className="text-lg font-extrabold text-[#111827] tracking-tight">Jadwal & Preferensi</h3>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-5 mb-6">
+                         <div className="space-y-1.5">
+                            <label className="text-[11px] font-semibold text-[#111827] px-1">Tanggal Rilis</label>
                             <input 
                               type="date"
                               className="settings-input"
@@ -906,8 +984,8 @@ export default function App() {
                               onChange={(e) => setAnnouncementDate(e.target.value)}
                             />
                          </div>
-                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Waktu (WIB)</label>
+                         <div className="space-y-1.5">
+                            <label className="text-[11px] font-semibold text-[#111827] px-1">Waktu (WIB)</label>
                             <input 
                               type="time"
                               className="settings-input"
@@ -917,19 +995,19 @@ export default function App() {
                          </div>
                       </div>
                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-5 bg-slate-50 rounded-[24px] border border-slate-100 hover:bg-white transition-all group">
+                            <div className="flex items-center justify-between p-5 bg-[#F9FAFB] rounded-2xl border border-[#E5E7EB]">
                               <div className="flex items-center gap-4">
                                  <div className={`w-8 h-8 rounded-full ${maintenanceMode ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-200 text-slate-400'} flex items-center justify-center`}>
                                     {maintenanceMode ? <CheckCircle size={14} /> : <XCircle size={14} />}
                                  </div>
                                  <div className="pr-4">
-                                    <p className="text-sm font-black text-slate-800 group-hover:text-[#0f172a] transition-colors">Mode Perawatan (Maintenance)</p>
-                                    <p className="text-[10px] font-bold text-slate-400">Nonaktifkan fitur pencarian untuk sementara.</p>
+                                    <p className="text-sm font-bold text-[#111827]">Mode Perawatan (Maintenance)</p>
+                                    <p className="text-[12px] font-normal text-[#6B7280]">Nonaktifkan fitur pencarian untuk sementara.</p>
                                  </div>
                               </div>
                               <div 
                                 onClick={() => setMaintenanceMode(!maintenanceMode)}
-                                className={`w-12 h-6 ${maintenanceMode ? 'bg-emerald-500' : 'bg-slate-200'} rounded-full p-1 cursor-pointer transition-all flex items-center`}
+                                className={`w-12 h-6 ${maintenanceMode ? 'bg-[#1D4ED8]' : 'bg-slate-200'} rounded-full p-1 cursor-pointer transition-all flex items-center`}
                               >
                                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-all ${maintenanceMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
                               </div>
@@ -940,10 +1018,10 @@ export default function App() {
                    <button 
                     onClick={handleSaveSettings}
                     disabled={isLoading}
-                    className="gold-button w-full shadow-2xl shadow-amber-500/20 active:translate-y-1 flex items-center justify-center gap-3"
+                    className="quantum-button w-full flex items-center justify-center gap-3"
                    >
                       {isLoading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                      SIMPAN SEMUA PERUBAHAN
+                      Simpan Semua Perubahan
                    </button>
 
                 </div>
@@ -958,7 +1036,7 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-[#0f172a]/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
               >
                 <motion.div 
                    initial={{ scale: 0.9, y: 20 }}
@@ -1007,8 +1085,8 @@ export default function App() {
                       </div>
 
                       <div className="pt-4 flex gap-4">
-                         <button type="submit" className="gold-button flex-1 shadow-lg shadow-amber-500/20 py-4">SIMPAN PERUBAHAN</button>
-                         <button type="button" onClick={() => setEditStudent(null)} className="px-6 bg-slate-100 text-slate-500 rounded-[20px] font-black text-[10px] tracking-widest uppercase hover:bg-slate-200 transition-all">BATAL</button>
+                         <button type="submit" className="quantum-button flex-1">Simpan Perubahan</button>
+                         <button type="button" onClick={() => setEditStudent(null)} className="quantum-button-ghost px-6">Batal</button>
                       </div>
                    </form>
                 </motion.div>
@@ -1021,185 +1099,242 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8fafc] font-sans">
-      {/* Official Header */}
-      <header className="deep-blue-header text-white px-6 md:px-10 py-6 md:py-8 flex flex-col md:flex-row justify-between items-center shadow-2xl no-print border-b-4 border-[#fbbf24]">
-        <div className="flex items-center gap-5 mb-4 md:mb-0">
-          <div className="w-14 h-14 bg-white rounded-xl shadow-lg flex items-center justify-center transform rotate-3 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-white font-sans">
+      {/* Clean Modern Header */}
+      <header className="bg-white border-b border-[#E5E7EB] px-6 md:px-12 py-5 flex justify-between items-center no-print sticky top-0 z-40 backdrop-blur-md bg-white/90">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 bg-[#1D4ED8] rounded-xl flex items-center justify-center overflow-hidden shadow-[0_8px_20px_-8px_rgba(29,78,216,0.6)]">
              {schoolInfo?.school_logo ? (
-                <img src={schoolInfo.school_logo} className="w-full h-full object-contain p-2" alt="Logo" />
+                <img src={schoolInfo.school_logo} className="w-full h-full object-contain p-1.5" alt="Logo" />
              ) : (
-                <GraduationCap size={32} className="text-[#0f172a]" />
+                <GraduationCap size={22} className="text-white" strokeWidth={2.5} />
              )}
           </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tighter uppercase leading-none">
-              {schoolInfo?.school_name || "SMKN 1 WONOGIRI"}
+          <div className="leading-tight">
+            <h1 className="text-[15px] font-extrabold text-[#111827] tracking-tight">
+              {schoolInfo?.school_name || "SMKN 1 Wonogiri"}
             </h1>
-            <p className="text-[10px] text-amber-400 uppercase tracking-[0.3em] font-black mt-1">Official Graduation Portal 2026</p>
+            <p className="text-[10px] text-[#6B7280] font-medium tracking-wide">Quantum Graduation Portal · 2026</p>
           </div>
         </div>
-        <div className="text-center md:text-right">
-          <div className="bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md border border-white/10">
-            <p className="text-xs font-black uppercase tracking-widest flex items-center gap-2 justify-center md:justify-end">
-              <Calendar size={12} className="text-amber-400" />
-              Tahun Ajaran 2025/2026
-            </p>
-          </div>
+        <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-full bg-[#F9FAFB] border border-[#E5E7EB]">
+          <Calendar size={12} className="text-[#1D4ED8]" />
+          <p className="text-[11px] font-semibold text-[#111827]">TA 2025 / 2026</p>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
-        <div className="w-full max-w-lg">
-          <AnimatePresence mode="wait">
-            {!result ? (
-              <motion.div
-                key="search-form"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="official-card p-8 md:p-10"
-              >
-                {!isReady && !maintenanceMode ? (
-                  <div className="text-center">
-                    <div className="inline-flex p-4 md:p-6 bg-amber-50 rounded-[32px] text-amber-500 mb-8 transform -rotate-3">
-                      <Calendar size={48} />
-                    </div>
-                    <h2 className="text-3xl font-black text-slate-800 tracking-tight mb-2">PENGUMUMAN SEGERA</h2>
-                    <p className="text-slate-400 text-sm font-medium mb-12 italic uppercase tracking-widest">Silakan menunggu waktu rilis resmi</p>
-                    
-                    <div className="grid grid-cols-4 gap-3 md:gap-5 mb-12">
-                      {[
-                        { label: 'HARI', value: countdown.days },
-                        { label: 'JAM', value: countdown.hours },
-                        { label: 'MENIT', value: countdown.minutes },
-                        { label: 'DETIK', value: countdown.seconds },
-                      ].map((item, i) => (
-                        <div key={i} className="bg-slate-50 p-3 md:p-5 rounded-2xl border border-slate-100 shadow-inner">
-                          <p className="text-3xl md:text-5xl font-black text-[#0f172a] gold-pulse tracking-tighter">
-                            {String(item.value).padStart(2, '0')}
-                          </p>
-                          <p className="text-[7px] md:text-[8px] font-black text-slate-400 tracking-[0.2em] mt-2">{item.label}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="p-6 bg-amber-500/5 rounded-3xl border border-amber-500/10">
-                      <p className="text-[10px] font-bold text-amber-600 leading-relaxed uppercase tracking-[0.1em]">
-                        Kunci akses formulir akan otomatis terbuka secara real-time<br/>saat hitung mundur tepat mencapai angka nol.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-center mb-10">
-                      <div className="inline-flex p-3 bg-slate-50 rounded-full text-slate-400 mb-4">
-                        <Search size={32} />
-                      </div>
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">Cek Hasil Kelulusan</h2>
-                      <p className="text-slate-400 text-sm mt-2 font-medium">Lengkapi data di bawah ini untuk melihat status:</p>
-                    </div>
-
-                    <form onSubmit={handleSearchClick} className="space-y-6">
-                      <div className={maintenanceMode ? 'opacity-50 pointer-events-none' : ''}>
-                        <label htmlFor="search-input" className="block text-[10px] uppercase tracking-[0.2em] font-black text-slate-500 mb-2 px-1">
-                          Nomor Induk Siswa Nasional (NISN)
-                        </label>
-                        <input
-                          type="text"
-                          id="search-input"
-                          className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl font-mono text-lg focus:border-[#fbbf24] focus:bg-white transition-all outline-none text-slate-800 placeholder:text-slate-300"
-                          placeholder="0082918xxx"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          required
-                          disabled={maintenanceMode}
-                        />
-                      </div>
-
-                      <div className={maintenanceMode ? 'opacity-50 pointer-events-none' : ''}>
-                        <label htmlFor="birth-date" className="block text-[10px] uppercase tracking-[0.2em] font-black text-slate-500 mb-2 px-1">
-                          Tanggal Lahir
-                        </label>
-                        <div className="relative">
-                           <input
-                            type="date"
-                            id="birth-date"
-                            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl font-mono text-lg focus:border-[#fbbf24] focus:bg-white transition-all outline-none text-slate-800"
-                            value={birthDate}
-                            onChange={(e) => setBirthDate(e.target.value)}
-                            required
-                            disabled={maintenanceMode}
-                          />
-                        </div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={isSearching || maintenanceMode}
-                        className={`w-full gold-button flex items-center justify-center gap-3 ${maintenanceMode ? 'opacity-50 shadow-none' : 'shadow-2xl shadow-amber-500/20'}`}
-                      >
-                        {isSearching ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            MEMPROSES...
-                          </>
-                        ) : (
-                          maintenanceMode ? "SYSTEM LOCKED" : "LIHAT HASIL KELULUSAN"
-                        )}
-                      </button>
-                    </form>
-
-                    {error && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-6 p-4 rounded-xl bg-red-50 text-red-700 border border-red-100 flex items-center gap-3 font-bold text-[10px] uppercase tracking-wide"
-                      >
-                        <XCircle size={14} />
-                        {error}
-                      </motion.div>
-                    )}
-
-                    {maintenanceMode && (
-                       <motion.div 
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="mt-8 p-6 bg-slate-900 text-white rounded-3xl text-center shadow-2xl shadow-slate-200 border-b-4 border-amber-500"
-                       >
-                          <Settings size={28} className="mx-auto mb-3 text-amber-400 animate-spin-slow" />
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400 mb-2">Maintenance Mode</p>
-                          <p className="text-[10px] font-bold text-slate-400 leading-relaxed uppercase tracking-wider">Layanan sedang dalam pemeliharaan rutin oleh Tim IT Skansagiri.</p>
-                       </motion.div>
-                    )}
-                  </>
-                )}
-
-                <div className="mt-10 pt-8 border-t border-slate-100 text-center">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] leading-relaxed">
-                    Created by: TIM IT SKANSAGIRI<br/>
-                    Powered by: Joben Enterprise
-                  </p>
+      <main className="flex-1 px-4 sm:px-6 md:px-12 py-10 md:py-16">
+        <AnimatePresence mode="wait">
+          {!result ? (
+            <motion.div
+              key="hero"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center"
+            >
+              {/* LEFT: Hero text */}
+              <div className="space-y-7">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EFF4FF] border border-[#DBEAFE]">
+                  <Sparkles size={12} className="text-[#1D4ED8]" />
+                  <span className="text-[11px] font-semibold text-[#1D4ED8] tracking-wide">Sistem Pengumuman Resmi 2026</span>
                 </div>
-              </motion.div>
-            ) : (
+
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#111827] leading-[1.05] tracking-tight">
+                  Quantum Portal<br />Kelulusan untuk{' '}
+                  <span className="relative inline-block">
+                    <span className="relative z-10 text-[#1D4ED8]">Siswa Modern</span>
+                    <span className="absolute left-0 right-0 bottom-1 h-3 bg-[#DBEAFE] -z-0 rounded-sm"></span>
+                  </span>
+                </h1>
+
+                <p className="text-[17px] leading-relaxed text-[#6B7280] max-w-lg font-normal">
+                  Periksa status kelulusan Anda secara aman, cepat, dan akurat.
+                  Cukup masukkan NISN dan tanggal lahir — hasil resmi tersedia
+                  langsung dari basis data sekolah dengan enkripsi tingkat lembaga.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-6 pt-2">
+                  <div>
+                    <p className="text-3xl font-extrabold text-[#111827] tracking-tight">{statsData.total || 450}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] mt-1">Total Siswa</p>
+                  </div>
+                  <div className="w-px h-10 bg-[#E5E7EB]" />
+                  <div>
+                    <p className="text-3xl font-extrabold text-[#1D4ED8] tracking-tight">98.2%</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] mt-1">Passing Rate</p>
+                  </div>
+                  <div className="w-px h-10 bg-[#E5E7EB]" />
+                  <div>
+                    <p className="text-3xl font-extrabold text-[#111827] tracking-tight">24/7</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] mt-1">Akses Real-time</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT: Search / Countdown card */}
+              <div className="relative">
+                {/* Soft halo behind card */}
+                <div className="absolute -inset-6 bg-gradient-to-tr from-[#DBEAFE]/60 via-white to-[#EFF4FF]/40 rounded-[32px] blur-2xl -z-10" />
+
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="quantum-card-floating p-7 sm:p-9"
+                >
+                  {!isReady && !maintenanceMode ? (
+                    <div className="text-center">
+                      <div className="inline-flex p-3 bg-[#EFF4FF] rounded-2xl text-[#1D4ED8] mb-5">
+                        <Calendar size={28} />
+                      </div>
+                      <h2 className="text-2xl sm:text-[26px] font-extrabold text-[#111827] tracking-tight mb-1.5">Pengumuman Segera Dibuka</h2>
+                      <p className="text-[#6B7280] text-sm mb-8">Silakan menunggu waktu rilis resmi.</p>
+
+                      <div className="grid grid-cols-4 gap-2.5 mb-8">
+                        {[
+                          { label: 'HARI', value: countdown.days },
+                          { label: 'JAM', value: countdown.hours },
+                          { label: 'MENIT', value: countdown.minutes },
+                          { label: 'DETIK', value: countdown.seconds },
+                        ].map((item, i) => (
+                          <div key={i} className="bg-[#F9FAFB] py-4 rounded-xl border border-[#E5E7EB]">
+                            <p className="text-3xl sm:text-4xl font-extrabold text-[#111827] quantum-pulse tracking-tight">
+                              {String(item.value).padStart(2, '0')}
+                            </p>
+                            <p className="text-[9px] font-semibold text-[#6B7280] tracking-[0.18em] mt-1.5">{item.label}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="p-4 bg-[#EFF4FF] rounded-xl border border-[#DBEAFE]">
+                        <p className="text-[11px] font-medium text-[#1E40AF] leading-relaxed">
+                          Formulir pencarian akan otomatis terbuka secara real-time
+                          saat hitung mundur mencapai angka nol.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-7">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1D4ED8] mb-1.5">Cek Hasil Kelulusan</p>
+                        <h2 className="text-2xl font-extrabold text-[#111827] tracking-tight">Masukkan Data Anda</h2>
+                        <p className="text-[#6B7280] text-sm mt-1.5">Pastikan NISN dan tanggal lahir sesuai kartu pelajar.</p>
+                      </div>
+
+                      <form onSubmit={handleSearchClick} className="space-y-4">
+                        <div className={maintenanceMode ? 'opacity-50 pointer-events-none' : ''}>
+                          <label htmlFor="search-input" className="block text-[11px] font-semibold text-[#111827] mb-1.5">
+                            Nomor Induk Siswa Nasional
+                          </label>
+                          <div className="relative">
+                            <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                            <input
+                              type="text"
+                              id="search-input"
+                              className="quantum-input"
+                              placeholder="00829180xx"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              required
+                              disabled={maintenanceMode}
+                            />
+                          </div>
+                        </div>
+
+                        <div className={maintenanceMode ? 'opacity-50 pointer-events-none' : ''}>
+                          <label htmlFor="birth-date" className="block text-[11px] font-semibold text-[#111827] mb-1.5">
+                            Tanggal Lahir
+                          </label>
+                          <div className="relative">
+                            <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                            <input
+                              type="date"
+                              id="birth-date"
+                              className="quantum-input"
+                              value={birthDate}
+                              onChange={(e) => setBirthDate(e.target.value)}
+                              required
+                              disabled={maintenanceMode}
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isSearching || maintenanceMode}
+                          className="w-full quantum-button flex items-center justify-center gap-2.5 mt-2"
+                        >
+                          {isSearching ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              Memproses...
+                            </>
+                          ) : (
+                            <>
+                              {maintenanceMode ? "Sistem Terkunci" : "Lihat Hasil Kelulusan"}
+                              {!maintenanceMode && <ArrowRight size={16} />}
+                            </>
+                          )}
+                        </button>
+
+                        {/* Feature badges */}
+                        <div className="flex flex-wrap gap-2 justify-center pt-3">
+                          <span className="feature-badge">
+                            <Lock size={10} /> AES-256 Enkripsi
+                          </span>
+                          <span className="feature-badge">
+                            <ShieldCheck size={10} /> Data Valid
+                          </span>
+                          <span className="feature-badge">
+                            <Activity size={10} /> 99.9% Uptime
+                          </span>
+                        </div>
+                      </form>
+
+                      {error && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-5 p-3.5 rounded-xl bg-red-50 text-red-700 border border-red-100 flex items-center gap-2.5 text-xs font-medium"
+                        >
+                          <XCircle size={14} />
+                          {error}
+                        </motion.div>
+                      )}
+
+                      {maintenanceMode && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.96 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="mt-6 p-5 bg-[#111827] text-white rounded-2xl text-center"
+                        >
+                          <Settings size={22} className="mx-auto mb-2 text-[#1D4ED8]" />
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-[#60A5FA] mb-1.5">Maintenance Mode</p>
+                          <p className="text-[11px] font-medium text-slate-300 leading-relaxed">Layanan sedang dalam pemeliharaan rutin oleh Tim IT Skansagiri.</p>
+                        </motion.div>
+                      )}
+                    </>
+                  )}
+                </motion.div>
+              </div>
+            </motion.div>
+          ) : (
               <motion.div
                 key="result-display"
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="space-y-6"
+                className="max-w-3xl mx-auto space-y-6"
               >
                 {/* ----------------------------------------------------------
-                    Official "Prestige" Result Card
-                    Layout: Inline biodata (Tempat, Tanggal Lahir on one line)
-                            + LULUS digital stamp over SKANSAGIRI watermark.
+                    Official "Prestige" Result Card — Quantum Modern Blue
                     ---------------------------------------------------------- */}
-                <div className="bg-white border-4 border-[#0f172a] rounded-2xl shadow-2xl overflow-hidden relative font-display">
+                <div className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_24px_60px_-20px_rgba(29,78,216,0.18),0_8px_24px_-12px_rgba(17,24,39,0.10)] overflow-hidden relative font-display">
                    {/* SKANSAGIRI watermark */}
                    <div className="watermark-text">SKANSAGIRI</div>
 
                    {/* Document header bar */}
-                   <div className="bg-[#0f172a] text-white px-6 md:px-10 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 relative z-10">
+                   <div className="bg-[#111827] text-white px-6 md:px-10 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 relative z-10">
                       <div className="flex items-center gap-3">
                         {schoolLogo ? (
                           <img
@@ -1208,20 +1343,20 @@ export default function App() {
                             className="w-9 h-9 object-contain bg-white rounded-md p-1"
                           />
                         ) : (
-                          <div className="w-9 h-9 rounded-md bg-[#fbbf24] text-[#0f172a] flex items-center justify-center">
+                          <div className="w-9 h-9 rounded-md bg-[#1D4ED8] text-white flex items-center justify-center">
                             <GraduationCap size={20} strokeWidth={2.5} />
                           </div>
                         )}
                         <div className="leading-tight">
-                          <p className="text-[9px] font-bold uppercase tracking-[0.32em] text-[#fbbf24]">
+                          <p className="text-[9px] font-semibold uppercase tracking-[0.32em] text-[#60A5FA]">
                             Surat Pengumuman Resmi
                           </p>
-                          <p className="text-xs font-black uppercase tracking-widest">
+                          <p className="text-xs font-bold uppercase tracking-widest">
                             Hasil Kelulusan Siswa
                           </p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-300">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-300">
                         TP. 2025 / 2026
                       </span>
                    </div>
@@ -1231,10 +1366,10 @@ export default function App() {
                      <div className="flex flex-col md:flex-row justify-between gap-8 mb-10">
                         <div className="flex-1 space-y-5">
                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#fbbf24] mb-1">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-[#1D4ED8] mb-1">
                                 Nama Lengkap
                               </p>
-                              <h3 className="font-display text-3xl md:text-4xl font-black text-slate-900 leading-tight uppercase tracking-tight">
+                              <h3 className="font-display text-3xl md:text-4xl font-extrabold text-[#111827] leading-tight uppercase tracking-tight">
                                 {result.name}
                               </h3>
                            </div>
@@ -1347,65 +1482,87 @@ export default function App() {
                         </div>
                      </div>
 
-                     <div className="mt-10 flex flex-col sm:flex-row gap-4 pt-8 border-t border-slate-100 items-center justify-between">
-                        <div className="flex gap-4 w-full sm:w-auto order-2 sm:order-1">
-                           <button className="flex-1 sm:flex-none bg-[#0f172a] text-white px-6 py-4 rounded-xl font-black text-xs tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
+                     <div className="mt-10 flex flex-col sm:flex-row gap-4 pt-8 border-t border-[#E5E7EB] items-center justify-between">
+                        <div className="flex gap-3 w-full sm:w-auto order-2 sm:order-1">
+                           <button className="flex-1 sm:flex-none quantum-button px-6 flex items-center justify-center gap-2">
                               <FileText size={16} />
-                              UNDUH SKL DIGITAL
+                              Unduh SKL Digital
                            </button>
                            <button
                              onClick={() => setResult(null)}
-                             className="px-8 bg-slate-100 text-slate-500 py-4 rounded-xl font-black text-xs tracking-widest hover:bg-slate-200 transition-all"
+                             className="px-6 quantum-button-ghost"
                            >
-                             KEMBALI
+                             Kembali
                            </button>
                         </div>
 
-                        <div className="text-right sm:text-right w-full sm:w-auto order-1 sm:order-2">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                             Created by: <span className="text-slate-700">TIM IT SKANSAGIRI</span>
-                             <span className="mx-2 text-slate-300">|</span>
-                             Powered by: <span className="text-[#0f172a]">Joben Enterprise</span>
-                           </p>
-                        </div>
+                        <p className="text-[10px] font-medium text-slate-400 tracking-wide order-1 sm:order-2">
+                          Created by: <span className="text-slate-500">TIM IT SKANSAGIRI</span>
+                          <span className="mx-2 text-slate-300">|</span>
+                          Powered by: <span className="text-[#1D4ED8] font-semibold">Joben Enterprise</span>
+                        </p>
                      </div>
                   </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
       </main>
 
-      {/* Official Footer */}
-      <footer className="px-6 md:px-10 py-8 bg-white border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6 no-print">
-        <div className="flex flex-col md:flex-row items-center gap-6">
-           <div className="text-center md:text-left">
-              <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-relaxed mb-1">
-                © 2026 {schoolInfo?.school_name || "SMKN 1 Wonogiri"}
-              </p>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.1em] leading-relaxed max-w-xs">
-                {schoolInfo?.school_address || "Sistem Informasi Kelulusan Terintegrasi"}
-              </p>
-           </div>
-           <button 
-              onClick={() => setView('admin')}
-              className="text-[9px] font-black uppercase text-slate-400 hover:text-[#fbbf24] transition-colors border border-slate-100 px-3 py-1 rounded-full flex items-center gap-2"
-           >
-             <LayoutDashboard size={10} />
-             Portal Admin
-           </button>
-        </div>
-        <div className="flex flex-wrap justify-center gap-6 md:gap-10 text-[10px] font-black uppercase tracking-tighter">
-          <div className="flex items-center gap-3 border-l-2 border-slate-100 pl-4">
-            <span className="text-slate-300">Created by:</span>
-            <span className="text-slate-700 tracking-normal underline decoration-[#fbbf24] decoration-2">TIM IT SKANSAGIRI</span>
+      {/* Motivational Section from Kepala Sekolah */}
+      {motivationMessage && (
+        <section className="px-4 sm:px-6 md:px-12 py-12 bg-[#F9FAFB] border-t border-[#E5E7EB] no-print">
+          <div className="max-w-4xl mx-auto">
+            <div className="module-card-blue p-8 sm:p-10 flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+              <div className="shrink-0 relative">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-[#DBEAFE] bg-white overflow-hidden flex items-center justify-center">
+                  {(principalPhotoPreview || principalPhoto) ? (
+                    <img
+                      src={principalPhotoPreview || `/storage/${principalPhoto}`}
+                      alt={principalName || 'Kepala Sekolah'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={36} className="text-[#9CA3AF]" strokeWidth={1.5} />
+                  )}
+                </div>
+                <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-[#1D4ED8] rounded-full flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(29,78,216,0.6)]">
+                  <Quote size={14} className="text-white" />
+                </div>
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1D4ED8] mb-2">Sambutan Kepala Sekolah</p>
+                <p className="text-[15px] sm:text-[16px] leading-relaxed text-[#111827] font-medium italic">
+                  &ldquo;{motivationMessage}&rdquo;
+                </p>
+                {principalName && (
+                  <p className="text-sm font-semibold text-[#111827] mt-4">— {principalName}</p>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-3 border-l-2 border-slate-100 pl-4">
-            <span className="text-slate-300">Powered by:</span>
-            <span className="text-[#0f172a]">Joben Enterprise</span>
-          </div>
+        </section>
+      )}
+
+      {/* Clean Modern Footer */}
+      <footer className="px-6 md:px-12 py-8 bg-white border-t border-[#E5E7EB] flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
+        <div className="flex items-center gap-4">
+          <p className="text-xs font-semibold text-[#111827]">
+            © 2026 {schoolInfo?.school_name || "SMKN 1 Wonogiri"}
+          </p>
+          <button
+            onClick={() => setView('admin')}
+            className="text-[11px] font-medium text-[#6B7280] hover:text-[#1D4ED8] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E5E7EB] hover:border-[#DBEAFE] hover:bg-[#EFF4FF]"
+          >
+            <LayoutDashboard size={11} />
+            Portal Admin
+          </button>
         </div>
+        <p className="text-[11px] text-slate-400 font-medium">
+          Created by: <span className="text-slate-500 font-semibold">TIM IT SKANSAGIRI</span>
+          <span className="mx-2 text-slate-300">|</span>
+          Powered by: <span className="text-slate-500 font-semibold">Joben Enterprise</span>
+        </p>
       </footer>
     </div>
   );

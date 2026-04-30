@@ -14,6 +14,15 @@ Frontend-only React + TypeScript single-page app built with Vite and Tailwind CS
 - Framer Motion, Recharts, lucide-react, canvas-confetti
 - `@google/genai` (Gemini API client) — uses `GEMINI_API_KEY` injected at build time via `vite.config.ts`
 
+## Visual Identity — "Quantum Modern Blue"
+
+- Primary: Royal Blue `#1D4ED8` (buttons, accents, active states)
+- Background: Pure White `#FFFFFF` with Off-White `#F9FAFB` for section dividers
+- Ink: `#111827` for headings, `#6B7280` for secondary text, `#9CA3AF` for placeholders
+- Typography: Plus Jakarta Sans (display) + Inter fallback, extra-bold headlines
+- Shape: 12–16px rounded corners, soft floating shadows
+- Reusable Tailwind components live in `src/index.css`: `.quantum-card`, `.quantum-card-floating`, `.quantum-button`, `.quantum-button-ghost`, `.feature-badge`, `.quantum-input`, `.module-card-blue`
+
 ## Project Layout
 
 - `index.html` — Vite entry

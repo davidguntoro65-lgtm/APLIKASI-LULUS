@@ -1,75 +1,125 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Montserrat", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-brand-dark: #0f172a; /* Deep Blue requested */
-  --color-brand-primary: #1e293b;
-  --color-brand-accent: #fbbf24; /* Gold accent */
+  --color-brand-primary: #1D4ED8;
+  --color-brand-primary-dark: #1E40AF;
+  --color-brand-ink: #111827;
+  --color-brand-muted: #6B7280;
+  --color-brand-surface: #F9FAFB;
+  --color-brand-border: #E5E7EB;
 }
 
 @layer base {
   body {
-    @apply bg-[#f8fafc] text-[#0f172a] font-sans antialiased;
+    @apply bg-white text-[#111827] font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
-  .official-card {
-    @apply bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden;
-  }
-  
-  .gold-button {
-    @apply bg-[#0f172a] text-white py-4 rounded-xl font-black tracking-widest text-sm hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 border-b-4 border-slate-700;
+  /* Quantum card — clean white, soft floating shadow */
+  .quantum-card {
+    @apply bg-white border border-[#E5E7EB] rounded-2xl;
+    box-shadow:
+      0 1px 2px 0 rgba(17, 24, 39, 0.04),
+      0 12px 32px -12px rgba(17, 24, 39, 0.08);
   }
 
+  .quantum-card-floating {
+    @apply bg-white border border-[#E5E7EB] rounded-2xl;
+    box-shadow:
+      0 1px 2px 0 rgba(17, 24, 39, 0.04),
+      0 24px 60px -20px rgba(29, 78, 216, 0.18),
+      0 8px 24px -12px rgba(17, 24, 39, 0.10);
+  }
+
+  /* Primary Royal Blue button */
+  .quantum-button {
+    @apply bg-[#1D4ED8] text-white py-4 rounded-xl font-bold tracking-wide text-sm
+           hover:bg-[#1E40AF] transition-all active:scale-[0.98] disabled:opacity-50
+           shadow-[0_8px_20px_-8px_rgba(29,78,216,0.55)];
+  }
+
+  .quantum-button-ghost {
+    @apply bg-white border border-[#E5E7EB] text-[#111827] py-4 rounded-xl font-semibold tracking-wide text-sm
+           hover:bg-[#F9FAFB] hover:border-[#D1D5DB] transition-all active:scale-[0.98] disabled:opacity-50;
+  }
+
+  /* Feature badge pills under search */
+  .feature-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+           bg-[#EFF4FF] text-[#1D4ED8] text-[10px] font-bold uppercase tracking-wider
+           border border-[#DBEAFE];
+  }
+
+  /* Minimal input with icon */
+  .quantum-input {
+    @apply w-full pl-12 pr-4 py-3.5 bg-white border border-[#E5E7EB] rounded-xl
+           text-[15px] text-[#111827] placeholder:text-[#9CA3AF]
+           focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#1D4ED8]/10
+           transition-all outline-none;
+  }
+
+  /* Admin sidebar (dark navy) */
   .admin-sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer text-slate-400 hover:bg-white/5 hover:text-white font-medium;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer
+           text-slate-400 hover:bg-white/5 hover:text-white font-medium text-sm;
   }
-
   .admin-sidebar-item-active {
-    @apply bg-[#fbbf24] text-[#0f172a] font-bold shadow-lg shadow-amber-500/20;
+    @apply bg-[#1D4ED8] text-white font-semibold
+           shadow-[0_8px_20px_-8px_rgba(29,78,216,0.6)];
   }
 
+  /* Admin tables */
   .admin-table-header {
-    @apply px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-100 bg-slate-50;
+    @apply px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[#6B7280]
+           border-b border-[#E5E7EB] bg-[#F9FAFB];
   }
-
   .admin-table-row {
-    @apply border-b border-slate-50 hover:bg-slate-50 transition-colors;
+    @apply border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors;
   }
 
+  /* Settings input */
   .settings-input {
-    @apply w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-[20px] font-black text-slate-800 focus:border-amber-400 focus:bg-white transition-all outline-none shadow-inner text-sm;
+    @apply w-full px-4 py-3.5 bg-white border border-[#E5E7EB] rounded-xl
+           text-[15px] font-medium text-[#111827]
+           focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#1D4ED8]/10
+           transition-all outline-none;
   }
 
-  .gold-pulse {
-    animation: gold-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  /* Module card with thin elegant blue border (Kepala Sekolah / Motivasi) */
+  .module-card-blue {
+    @apply bg-white border border-[#DBEAFE] rounded-2xl p-6
+           shadow-[0_1px_2px_0_rgba(17,24,39,0.04),0_8px_24px_-12px_rgba(29,78,216,0.12)];
   }
 
-  @keyframes gold-pulse {
-    0%, 100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: .8;
-      transform: scale(1.05);
-    }
+  /* Subtle pulse for countdown */
+  .quantum-pulse {
+    animation: quantum-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  @keyframes quantum-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 }
 
 .watermark-text {
-  @apply absolute inset-0 flex items-center justify-center text-slate-900 font-black text-[12vw] select-none pointer-events-none opacity-[0.04] rotate-[-15deg] z-0;
+  @apply absolute inset-0 flex items-center justify-center text-[#111827] font-extrabold text-[12vw]
+         select-none pointer-events-none opacity-[0.035] rotate-[-12deg] z-0;
   font-family: var(--font-display);
   letter-spacing: -0.04em;
 }
 
 /* ----------------------------------------------------------
-   Official "LULUS" digital stamp
+   Official "LULUS" digital stamp — Royal Blue accent
    ---------------------------------------------------------- */
 .official-stamp {
   font-family: var(--font-display);
@@ -91,7 +141,6 @@
   letter-spacing: 0.18em;
   position: relative;
 }
-
 .official-stamp::before,
 .official-stamp::after {
   content: "";
@@ -104,7 +153,6 @@
 }
 .official-stamp::before { top: 32px; }
 .official-stamp::after  { bottom: 32px; }
-
 .official-stamp .stamp-eyebrow {
   font-size: 10px;
   font-weight: 700;
@@ -125,7 +173,6 @@
   margin-top: 6px;
   opacity: 0.75;
 }
-
 .official-stamp.is-failed {
   color: #b91c1c;
   background: rgba(244, 63, 94, 0.04);
@@ -134,19 +181,9 @@
     0 8px 24px rgba(185, 28, 28, 0.08);
 }
 
-.deep-blue-header {
-  background: #0f172a;
-}
-
 /* Print Styles */
 @media print {
-  .no-print {
-    display: none !important;
-  }
-  .print-only {
-    display: block !important;
-  }
-  body {
-    background: white;
-  }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { background: white; }
 }
