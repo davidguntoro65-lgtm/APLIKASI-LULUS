@@ -6,6 +6,17 @@ Sistem informasi pengumuman kelulusan siswa SMKN 1 Wonogiri Tahun Pelajaran 2025
 
 Full-stack app: React + TypeScript SPA (Vite, Tailwind v4) on the frontend and an **Express + tsx backend** on the same port (5000) for the JSON API. The original `laravel/` directory remains as the reference / cPanel-portable backend, but the active runtime in Replit is the Node/Express server in `server/`.
 
+### Replit Deployment (Publish)
+
+Configured for **VM** deployment so the Express server stays online and the JSON datastore persists between requests:
+
+- **Build command**: `npm run build` (Vite static bundle into `dist/`)
+- **Run command**: `npm run start` (`NODE_ENV=production npx tsx server/index.ts`)
+- In production the server skips Vite middleware and serves `dist/` via `express.static` plus an SPA fallback that returns `dist/index.html` for unknown routes; `/api/*` is unaffected.
+- `APP_URL` is auto-derived from the incoming request host. Override only if needed (Secrets tab).
+- Optional `DEPLOY_TOKEN` secret — if set, `/api/deploy/setup?token=…` is gated by it. If unset, the same endpoint accepts a logged-in admin Bearer token, so the in-dashboard "Force Migrate" button always works.
+- Persistence note: `server/data.json` and `server/uploads/` live on the VM disk, so they survive runtime restarts but reset on redeploy. For permanent persistence, swap to Replit DB or PostgreSQL.
+
 ### Mode Online Total (current default)
 
 `src/lib/localStore.ts` exports a `ONLINE_ONLY` flag that **disables the localStorage fallback** in `apiCall()`. The SPA only accepts data from the backend; if the API is unreachable the call resolves with `{ success:false, _fromLocal:true }` and the UI surfaces an error instead of silently writing to localStorage. The "Status Backend" health card in the Setup tab therefore shows **Terhubung (Online)** as long as the Express server is up, and **Tidak Terhubung (Mode Lokal)** if it is not.

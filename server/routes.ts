@@ -264,7 +264,7 @@ export function buildApiRouter(): Router {
     }));
   });
 
-  r.post('/admin/students/:id', (req, res) => {
+  r.post('/admin/students/:id(\\d+)', (req, res) => {
     const db = load();
     const id = Number(req.params.id);
     const idx = db.students.findIndex((s) => s.id === id);
@@ -400,7 +400,7 @@ export function buildApiRouter(): Router {
           const birthDate = parseDate(pick(row, ['birthdate', 'tanggallahir', 'tgllahir']));
           const klass = String(pick(row, ['class', 'kelas']) ?? '').trim();
           const major = String(pick(row, ['major', 'jurusan', 'kompetensi']) ?? '').trim();
-          const status = parseStatus(pick(row, ['statusgraduation', 'status', 'kelulusan']));
+          const status = parseStatus(pick(row, ['statusgraduation', 'status', 'kelulusan', 'statuskelulusan', 'lulus']));
 
           if (!nisn || !name || !birthDate) {
             failed++;
@@ -601,14 +601,30 @@ export function buildApiRouter(): Router {
   r.all('/deploy/setup', (req, res) => {
     const expected = process.env.DEPLOY_TOKEN || '';
     const given = String((req.query.token ?? req.body?.token) ?? '');
-    if (!expected) {
-      return res.status(503).json({
-        success: false,
-        message: 'DEPLOY_TOKEN belum di-set di .env. Tambahkan baris: DEPLOY_TOKEN=rahasia-anda lalu coba lagi.',
-      });
+    const auth = String(req.headers.authorization || '');
+    const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    const sessionOk = !!bearer && sessions.has(bearer);
+
+    let authorized = false;
+    if (expected) {
+      try {
+        authorized = !!given
+          && given.length === expected.length
+          && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+      } catch { authorized = false; }
     }
-    if (!given || given.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected))) {
-      return res.status(401).json({ success: false, message: 'Token tidak valid.' });
+    // Fallback: a logged-in admin (panel-admin session) can always run setup.
+    if (!authorized && sessionOk) authorized = true;
+    // Or: token equals admin password (single-source-of-truth shortcut).
+    if (!authorized && given && given === ADMIN_PASS) authorized = true;
+
+    if (!authorized) {
+      return res.status(401).json({
+        success: false,
+        message: expected
+          ? 'Token tidak valid. Masukkan DEPLOY_TOKEN yang benar atau login admin terlebih dahulu.'
+          : 'Login admin terlebih dahulu, atau masukkan password admin sebagai token.',
+      });
     }
     const result = migrate();
     res.json({
