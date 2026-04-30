@@ -4,7 +4,9 @@
  * Developed by: TIM IT SKANSAGIRI & Joben Enterprise
  */
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\GraduationController;
+use App\Http\Controllers\PublicController;
 use Illuminate\Support\Facades\Route;
 
 // Main Endpoint for Graduation Check

@@ -131,18 +131,20 @@ class AdminController extends Controller
     public function getSettings()
     {
         $settings = Setting::all()->pluck('value', 'key');
-        
+
         return response()->json([
             'success' => true,
             'data' => [
-                'announcement_date' => $settings['announcement_date'] ?? '2026-05-15',
-                'announcement_time' => $settings['announcement_time'] ?? '16:00',
-                'maintenance_mode' => ($settings['maintenance_mode'] ?? '0') == '1',
-                'school_name' => $settings['school_name'] ?? 'SMKN 1 Wonogiri',
-                'school_npsn' => $settings['school_npsn'] ?? '20311234',
-                'school_address' => $settings['school_address'] ?? 'Jl. Jend. Sudirman No. 123, Wonogiri',
-                'principal_name' => $settings['principal_name'] ?? 'Drs. Supriyanto, M.Pd.',
-                'school_logo' => $settings['school_logo'] ?? null,
+                'announcement_date'   => $settings['announcement_date']   ?? '2026-05-15',
+                'announcement_time'   => $settings['announcement_time']   ?? '16:00',
+                'maintenance_mode'    => ($settings['maintenance_mode']   ?? '0') == '1',
+                'school_name'         => $settings['school_name']         ?? 'SMKN 1 Wonogiri',
+                'school_npsn'         => $settings['school_npsn']         ?? '20311234',
+                'school_address'      => $settings['school_address']      ?? 'Jl. Jend. Sudirman No. 123, Wonogiri',
+                'principal_name'      => $settings['principal_name']      ?? 'Drs. Supriyanto, M.Pd.',
+                'school_logo'         => $settings['school_logo']         ?? null,
+                'principal_photo'     => $settings['principal_photo']     ?? null,
+                'motivation_message'  => $settings['motivation_message']  ?? 'Selamat kepada seluruh siswa-siswi SMKN 1 Wonogiri. Teruslah berkarya, berinovasi, dan menjadi generasi unggul yang membanggakan.',
             ]
         ]);
     }
@@ -153,24 +155,26 @@ class AdminController extends Controller
     public function updateSettings(Request $request)
     {
         $request->validate([
-            'announcement_date' => 'nullable|date',
-            'announcement_time' => 'nullable',
-            'school_name' => 'nullable|string',
-            'school_npsn' => 'nullable|string',
-            'school_address' => 'nullable|string',
-            'principal_name' => 'nullable|string',
-            'maintenance_mode' => 'nullable|boolean',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
+            'announcement_date'  => 'nullable|date',
+            'announcement_time'  => 'nullable',
+            'school_name'        => 'nullable|string',
+            'school_npsn'        => 'nullable|string',
+            'school_address'     => 'nullable|string',
+            'principal_name'     => 'nullable|string',
+            'maintenance_mode'   => 'nullable|boolean',
+            'motivation_message' => 'nullable|string|max:2000',
+            'logo'               => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
+            'principal_photo'    => 'nullable|image|mimes:jpeg,png,jpg|max:4096',
         ]);
 
-        $data = $request->except('logo');
+        $data = $request->except(['logo', 'principal_photo']);
 
         foreach ($data as $key => $value) {
             Setting::updateOrCreate(['key' => $key], ['value' => $value]);
         }
 
+        // Logo upload
         if ($request->hasFile('logo')) {
-            // Delete old logo
             $oldLogo = Setting::where('key', 'school_logo')->first();
             if ($oldLogo && $oldLogo->value) {
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($oldLogo->value);
@@ -178,6 +182,17 @@ class AdminController extends Controller
 
             $path = $request->file('logo')->store('branding', 'public');
             Setting::updateOrCreate(['key' => 'school_logo'], ['value' => $path]);
+        }
+
+        // Principal photo upload
+        if ($request->hasFile('principal_photo')) {
+            $oldPhoto = Setting::where('key', 'principal_photo')->first();
+            if ($oldPhoto && $oldPhoto->value) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPhoto->value);
+            }
+
+            $path = $request->file('principal_photo')->store('principal', 'public');
+            Setting::updateOrCreate(['key' => 'principal_photo'], ['value' => $path]);
         }
 
         return response()->json(['success' => true, 'message' => 'Pengaturan berhasil diperbarui']);

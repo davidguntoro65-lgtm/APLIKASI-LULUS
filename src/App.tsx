@@ -220,6 +220,10 @@ export default function App() {
         setSchoolInfo(json.data);
         setMaintenanceMode(json.data.maintenance_mode);
         setIsReady(json.data.announcement_active);
+        if (json.data.principal_photo) setPrincipalPhoto(json.data.principal_photo);
+        if (typeof json.data.motivation_message === 'string' && json.data.motivation_message.trim() !== '') {
+          setMotivationMessage(json.data.motivation_message);
+        }
       }
     } catch (e) {
       console.error("Failed to fetch school info", e);
@@ -330,6 +334,10 @@ export default function App() {
         setSchoolAddress(json.data.school_address);
         setPrincipalName(json.data.principal_name);
         setSchoolLogo(json.data.school_logo);
+        if (json.data.principal_photo) setPrincipalPhoto(json.data.principal_photo);
+        if (typeof json.data.motivation_message === 'string' && json.data.motivation_message.trim() !== '') {
+          setMotivationMessage(json.data.motivation_message);
+        }
       }
     } catch (e) {
       console.error("Failed to fetch settings", e);
