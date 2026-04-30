@@ -4,7 +4,17 @@ Sistem informasi pengumuman kelulusan siswa SMKN 1 Wonogiri Tahun Pelajaran 2025
 
 ## Project Type
 
-Full-stack app: React + TypeScript SPA (Vite, Tailwind v4) on the frontend and an **Express + tsx backend** on the same port (5000) for the JSON API. The original `laravel/` directory remains as the reference / cPanel-portable backend, but the active runtime in Replit is the Node/Express server in `server/`.
+Full-stack app: React + TypeScript SPA (Vite, Tailwind v4) on the frontend and an **Express + tsx backend** on the same port (5000) for the JSON API, backed by **Replit PostgreSQL via Drizzle ORM**. The original `laravel/` directory remains as the reference / cPanel-portable backend, but the active runtime in Replit is the Node/Express server in `server/`.
+
+### Database (PostgreSQL via Drizzle ORM)
+
+The persistence layer is **Replit-managed PostgreSQL** (provisioned automatically; connection string in `process.env.DATABASE_URL`). The legacy `server/data.json` file is no longer used — it's auto-imported on first boot and renamed to `server/data.json.migrated-<ts>.bak` so it can never be re-read.
+
+- `server/schema.ts` — Drizzle table definitions for `students`, `settings` (key/value), `galleries`, `import_archives`.
+- `server/db.ts` — exports `pool` (`pg.Pool`), `db` (drizzle instance), helpers (`getAllSettings`, `setSetting`, `rowToStudent`, `decorateStudent`), `migrate()` (idempotent `CREATE TABLE IF NOT EXISTS` + default-settings seed), `ping()` (`SELECT version()` health probe), `counts()`, and `importLegacyJsonIfPresent()` (one-shot data.json importer).
+- `server/routes.ts` — every handler is async and uses Drizzle queries or parameterised `pool.query()` calls — INSERT/UPDATE/DELETE go straight to PostgreSQL. Excel import wraps all upserts in a single transaction (`BEGIN ... COMMIT`); purge uses `TRUNCATE ... RESTART IDENTITY`.
+- `server/index.ts` boots the API; the API router invokes `migrate()` and `importLegacyJsonIfPresent()` on first request so the DB is always provisioned before the SPA gets data.
+- Health endpoint `GET /api/deploy/health` now reports `database: "postgres"`, `database_status: "connected" | "disconnected"`, `database_version`, and `database_latency_ms`.
 
 ### Replit Deployment (Publish)
 
