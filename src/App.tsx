@@ -1190,13 +1190,26 @@ export default function App() {
               className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center"
             >
               {/* LEFT: Hero text */}
-              <div className="space-y-7">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EFF4FF] border border-[#DBEAFE]">
+              <motion.div
+                initial={{ opacity: 0, y: 32 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-7"
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.05, ease: 'easeOut' }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EFF4FF] border border-[#DBEAFE]"
+                >
                   <Sparkles size={12} className="text-[#1D4ED8]" />
                   <span className="text-[11px] font-semibold text-[#1D4ED8] tracking-wide">Sistem Pengumuman Resmi · TA 2025/2026</span>
-                </div>
+                </motion.div>
 
-                <h1
+                <motion.h1
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
                   className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold text-[#1D4ED8] leading-[1.08] tracking-tight"
                   style={{ fontFamily: '"Plus Jakarta Sans", "Inter", system-ui, sans-serif' }}
                 >
@@ -1205,31 +1218,19 @@ export default function App() {
                     {schoolInfo?.school_name || 'SMK Negeri 1 Wonogiri'}
                   </span>{' '}
                   TA 2025/2026
-                </h1>
+                </motion.h1>
 
-                <p className="text-[17px] leading-relaxed text-[#6B7280] max-w-lg font-normal">
+                <motion.p
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.25, ease: 'easeOut' }}
+                  className="text-[17px] leading-relaxed text-[#6B7280] max-w-lg font-normal"
+                >
                   Periksa status kelulusan Anda secara aman, cepat, dan akurat.
                   Cukup masukkan NISN dan tanggal lahir — hasil resmi tersedia
                   langsung dari basis data sekolah dengan enkripsi tingkat lembaga.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-6 pt-2">
-                  <div>
-                    <p className="text-3xl font-extrabold text-[#111827] tracking-tight">{statsData?.total ?? 450}</p>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] mt-1">Total Siswa</p>
-                  </div>
-                  <div className="w-px h-10 bg-[#E5E7EB]" />
-                  <div>
-                    <p className="text-3xl font-extrabold text-[#1D4ED8] tracking-tight">98.2%</p>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] mt-1">Passing Rate</p>
-                  </div>
-                  <div className="w-px h-10 bg-[#E5E7EB]" />
-                  <div>
-                    <p className="text-3xl font-extrabold text-[#111827] tracking-tight">24/7</p>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] mt-1">Akses Real-time</p>
-                  </div>
-                </div>
-              </div>
+                </motion.p>
+              </motion.div>
 
               {/* RIGHT: Search / Countdown card */}
               <div className="relative">
@@ -1237,9 +1238,15 @@ export default function App() {
                 <div className="absolute -inset-6 bg-gradient-to-tr from-[#DBEAFE]/60 via-white to-[#EFF4FF]/40 rounded-[32px] blur-2xl -z-10" />
 
                 <motion.div
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
+                  transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                  whileHover={{
+                    scale: 1.02,
+                    boxShadow:
+                      '0 2px 4px 0 rgba(17, 24, 39, 0.05), 0 32px 80px -20px rgba(29, 78, 216, 0.28), 0 12px 32px -12px rgba(17, 24, 39, 0.14)',
+                    transition: { duration: 0.35, ease: 'easeOut' },
+                  }}
                   className="quantum-card-floating p-7 sm:p-9"
                 >
                   {!isReady && !maintenanceMode ? (
