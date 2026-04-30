@@ -1,10 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  
+
   --color-brand-dark: #0f172a; /* Deep Blue requested */
   --color-brand-primary: #1e293b;
   --color-brand-accent: #fbbf24; /* Gold accent */
@@ -62,7 +63,75 @@
 }
 
 .watermark-text {
-  @apply absolute inset-0 flex items-center justify-center text-slate-900 font-black text-[12vw] select-none pointer-events-none opacity-[0.03] rotate-[-15deg] z-0;
+  @apply absolute inset-0 flex items-center justify-center text-slate-900 font-black text-[12vw] select-none pointer-events-none opacity-[0.04] rotate-[-15deg] z-0;
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+/* ----------------------------------------------------------
+   Official "LULUS" digital stamp
+   ---------------------------------------------------------- */
+.official-stamp {
+  font-family: var(--font-display);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 200px;
+  height: 200px;
+  border-radius: 9999px;
+  border: 6px double currentColor;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.04);
+  transform: rotate(-12deg);
+  box-shadow:
+    inset 0 0 0 3px rgba(4, 120, 87, 0.15),
+    0 8px 24px rgba(4, 120, 87, 0.08);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  position: relative;
+}
+
+.official-stamp::before,
+.official-stamp::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.35;
+}
+.official-stamp::before { top: 32px; }
+.official-stamp::after  { bottom: 32px; }
+
+.official-stamp .stamp-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  margin-bottom: 4px;
+}
+.official-stamp .stamp-headline {
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  font-style: italic;
+}
+.official-stamp .stamp-meta {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  margin-top: 6px;
+  opacity: 0.75;
+}
+
+.official-stamp.is-failed {
+  color: #b91c1c;
+  background: rgba(244, 63, 94, 0.04);
+  box-shadow:
+    inset 0 0 0 3px rgba(185, 28, 28, 0.15),
+    0 8px 24px rgba(185, 28, 28, 0.08);
 }
 
 .deep-blue-header {

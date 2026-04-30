@@ -22,13 +22,36 @@ const CHART_DATA = [
   { name: 'Belum Lulus', value: MOCK_STATS.tidakLulus, color: '#ef4444' },
 ];
 
+const ID_MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+/** Format an ISO date (YYYY-MM-DD) as "26 Mei 2008". */
+const formatBirthDate = (iso?: string | null): string => {
+  if (!iso) return '-';
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return `${d} ${ID_MONTHS[m - 1] ?? m} ${y}`;
+};
+
+/** "Wonogiri, 26 Mei 2008" */
+const formatInlineBirth = (place?: string | null, iso?: string | null): string => {
+  const p = (place ?? '').trim();
+  const dateStr = iso ? formatBirthDate(iso) : '';
+  if (!p && !dateStr) return '-';
+  if (!p) return dateStr;
+  if (!dateStr) return p;
+  return `${p}, ${dateStr}`;
+};
+
 const MOCK_STUDENTS = [
   {
     id: 1,
     nisn: "1234567890",
-    nik: "3312010101010001",
     name: "Ahmad Saeful",
-    birth_date: "2008-05-15",
+    birth_place: "Wonogiri",
+    birth_date: "2008-05-26",
     class: "XII RPL 1",
     major: "Rekayasa Perangkat Lunak",
     status_graduation: true,
@@ -43,8 +66,8 @@ const MOCK_STUDENTS = [
   {
     id: 2,
     nisn: "0987654321",
-    nik: "3312010101010002",
     name: "Siti Rahmawati",
+    birth_place: "Sukoharjo",
     birth_date: "2008-08-20",
     class: "XII TKJ 2",
     major: "Teknik Komputer & Jaringan",
@@ -562,7 +585,8 @@ export default function App() {
                          <tr>
                             <th className="admin-table-header pl-8">NISN</th>
                             <th className="admin-table-header">Nama Lengkap</th>
-                            <th className="admin-table-header">Kelas / Program</th>
+                            <th className="admin-table-header">Kelas</th>
+                            <th className="admin-table-header">Konsentrasi Keahlian</th>
                             <th className="admin-table-header text-center">Hasil</th>
                             <th className="admin-table-header text-right pr-8">Opsi</th>
                          </tr>
@@ -572,12 +596,18 @@ export default function App() {
                             <tr key={student.id} className="admin-table-row group">
                                <td className="px-8 py-6 font-mono text-xs font-bold text-slate-500">{student.nisn}</td>
                                <td className="px-6 py-6 transition-all group-hover:pl-8">
-                                  <p className="font-black text-slate-800 text-sm tracking-tight">{student.name}</p>
-                                  <p className="text-[10px] text-slate-400 font-mono mt-1">{student.nik}</p>
+                                  <p className="font-black text-slate-800 text-sm tracking-tight uppercase">{student.name}</p>
+                                  <p className="text-[10px] text-slate-400 font-medium mt-1 italic">
+                                    {formatInlineBirth(student.birth_place, student.birth_date)}
+                                  </p>
                                </td>
                                <td className="px-6 py-6">
-                                  <p className="text-[11px] font-black text-slate-500 tracking-tight uppercase leading-none">{student.class}</p>
-                                  <p className="text-[9px] font-bold text-slate-300 uppercase truncate mt-1">{student.major}</p>
+                                  <span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest">
+                                    {student.class}
+                                  </span>
+                               </td>
+                               <td className="px-6 py-6 max-w-[220px]">
+                                  <p className="text-[11px] font-bold text-slate-700 leading-snug">{student.major}</p>
                                </td>
                                <td className="px-6 py-6 text-center">
                                   <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tighter ${
@@ -587,7 +617,7 @@ export default function App() {
                                   </span>
                                </td>
                                <td className="px-8 py-6 text-right">
-                                  <button 
+                                  <button
                                     onClick={() => setEditStudent(student)}
                                     className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm"
                                   >
@@ -639,14 +669,16 @@ export default function App() {
                            Struktur Kolom Excel (Wajib):
                          </h4>
                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            {['nisn', 'name', 'birth_date', 'status'].map((col) => (
+                            {['nisn', 'name', 'birth_place', 'birth_date', 'class', 'major', 'status'].map((col) => (
                                <div key={col} className="bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm">
                                   <code className="text-[10px] font-black text-blue-600">{col}</code>
                                </div>
                             ))}
                          </div>
                          <p className="mt-4 text-[10px] text-slate-400 font-medium leading-relaxed italic">
-                           * birth_date: YYYY-MM-DD atau Format Excel Date.<br/>
+                           * birth_place: Kota / Kabupaten kelahiran (mis. Wonogiri).<br/>
+                           * birth_date: YYYY-MM-DD, DD/MM/YYYY, "26 Mei 2008" atau format Excel Date.<br/>
+                           * major: Konsentrasi Keahlian (mis. Rekayasa Perangkat Lunak).<br/>
                            * status: 1 (Lulus), 0 (Belum Lulus).
                          </p>
                       </div>
@@ -1058,62 +1090,162 @@ export default function App() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="space-y-6"
               >
-                {/* Result Card */}
-                <div className="bg-white border-4 border-[#0f172a] rounded-2xl shadow-2xl overflow-hidden relative">
-                   {/* Watermark */}
+                {/* ----------------------------------------------------------
+                    Official "Prestige" Result Card
+                    Layout: Inline biodata (Tempat, Tanggal Lahir on one line)
+                            + LULUS digital stamp over SKANSAGIRI watermark.
+                    ---------------------------------------------------------- */}
+                <div className="bg-white border-4 border-[#0f172a] rounded-2xl shadow-2xl overflow-hidden relative font-display">
+                   {/* SKANSAGIRI watermark */}
                    <div className="watermark-text">SKANSAGIRI</div>
 
-                   <div className="bg-[#0f172a] text-white px-8 py-4 flex justify-between items-center sm:hidden no-print relative z-10">
-                      <span className="text-[10px] font-black tracking-widest uppercase">HASIL KELULUSAN SISWA</span>
-                    </div>
-                  <div className="p-8 md:p-12 relative z-10">
+                   {/* Document header bar */}
+                   <div className="bg-[#0f172a] text-white px-6 md:px-10 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 relative z-10">
+                      <div className="flex items-center gap-3">
+                        {schoolLogo ? (
+                          <img
+                            src={`/storage/${schoolLogo}`}
+                            alt="Logo Sekolah"
+                            className="w-9 h-9 object-contain bg-white rounded-md p-1"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-md bg-[#fbbf24] text-[#0f172a] flex items-center justify-center">
+                            <GraduationCap size={20} strokeWidth={2.5} />
+                          </div>
+                        )}
+                        <div className="leading-tight">
+                          <p className="text-[9px] font-bold uppercase tracking-[0.32em] text-[#fbbf24]">
+                            Surat Pengumuman Resmi
+                          </p>
+                          <p className="text-xs font-black uppercase tracking-widest">
+                            Hasil Kelulusan Siswa
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-300">
+                        TP. 2025 / 2026
+                      </span>
+                   </div>
+
+                   <div className="p-8 md:p-12 relative z-10">
+                     {/* Header: identity + photo */}
                      <div className="flex flex-col md:flex-row justify-between gap-8 mb-10">
-                        <div className="space-y-4">
+                        <div className="flex-1 space-y-5">
                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-[#fbbf24]">Nama Lengkap</p>
-                              <h3 className="text-3xl font-black text-slate-800 leading-tight uppercase">
-                                 {result.status_graduation ? `SELAMAT! ${result.name}` : result.name}
+                              <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#fbbf24] mb-1">
+                                Nama Lengkap
+                              </p>
+                              <h3 className="font-display text-3xl md:text-4xl font-black text-slate-900 leading-tight uppercase tracking-tight">
+                                {result.name}
                               </h3>
                            </div>
-                           <div className="grid grid-cols-2 gap-6">
-                              <div>
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">NISN</p>
-                                 <p className="font-bold text-slate-600 font-mono tracking-tighter">{result.nisn}</p>
+
+                           <dl className="space-y-3">
+                              <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-4">
+                                 <dt className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400 sm:w-48 shrink-0">
+                                   NISN
+                                 </dt>
+                                 <dd className="font-mono font-bold text-slate-700 tracking-tight text-base">
+                                   {result.nisn}
+                                 </dd>
                               </div>
-                              <div>
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Kelas</p>
-                                 <p className="font-bold text-slate-600">{result.class}</p>
+
+                              <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-4">
+                                 <dt className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400 sm:w-48 shrink-0">
+                                   Tempat, Tanggal Lahir
+                                 </dt>
+                                 <dd className="font-display font-bold text-slate-700 text-base">
+                                   {formatInlineBirth(
+                                     (result as any).birth_place,
+                                     result.birth_date,
+                                   )}
+                                 </dd>
                               </div>
-                           </div>
+
+                              <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-4">
+                                 <dt className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400 sm:w-48 shrink-0">
+                                   Kelas
+                                 </dt>
+                                 <dd className="font-display font-bold text-slate-700 text-base">
+                                   {result.class}
+                                 </dd>
+                              </div>
+
+                              <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-4">
+                                 <dt className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400 sm:w-48 shrink-0">
+                                   Konsentrasi Keahlian
+                                 </dt>
+                                 <dd className="font-display font-bold text-slate-700 text-base">
+                                   {result.major}
+                                 </dd>
+                              </div>
+                           </dl>
                         </div>
-                        <div className="w-28 h-36 bg-slate-50 border-2 border-slate-100 rounded-xl flex items-center justify-center text-slate-300">
+
+                        <div className="w-28 h-36 bg-slate-50 border-2 border-slate-100 rounded-xl flex items-center justify-center text-slate-300 self-start">
                            <User size={48} strokeWidth={1} />
                         </div>
                      </div>
 
-                     <div className={`p-8 rounded-2xl text-center border-4 transform transition-all shadow-inner ${
-                        result.status_graduation 
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-700' 
-                          : 'bg-rose-50 border-rose-500 text-rose-700'
-                      }`}>
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-3">
-                           {result.status_graduation 
-                             ? `Anda Dinyatakan LULUS dari ${schoolInfo?.school_name || "SMKN 1 Wonogiri"}` 
-                             : "Status Kelulusan Anda:"}
-                        </p>
-                        <h4 className="text-6xl font-black italic tracking-tighter mb-4">
-                          {result.status_graduation ? "LULUS" : "BELUM LULUS"}
-                        </h4>
-                        
-                        {!result.status_graduation && (
-                           <p className="text-xs font-bold leading-relaxed mb-2">
-                             Mohon maaf, Anda dinyatakan BELUM LULUS. Silakan hubungi wali kelas atau admin sekolah untuk informasi lebih lanjut.
-                           </p>
-                        )}
-                        
-                        <p className="text-[10px] font-bold opacity-60 uppercase">
-                          {schoolInfo?.school_name || "SMKN 1 WONOGIRI"} • MEI 2026
-                        </p>
+                     {/* Decision band with digital stamp on top of watermark */}
+                     <div className={`relative overflow-hidden p-8 md:p-10 rounded-2xl border-4 shadow-inner ${
+                        result.status_graduation
+                          ? 'bg-emerald-50/60 border-emerald-500'
+                          : 'bg-rose-50/60 border-rose-500'
+                     }`}>
+                        {/* Inner watermark for the decision band */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                          <span
+                            className="font-display font-black text-[20vw] md:text-[14vw] text-slate-900 opacity-[0.04] -rotate-12"
+                            style={{ letterSpacing: '-0.04em' }}
+                          >
+                            SKANSAGIRI
+                          </span>
+                        </div>
+
+                        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                           <div className={`flex-1 text-center md:text-left ${
+                             result.status_graduation ? 'text-emerald-800' : 'text-rose-800'
+                           }`}>
+                              <p className="text-[10px] font-black uppercase tracking-[0.32em] mb-3 opacity-80">
+                                {result.status_graduation
+                                  ? 'Pengumuman Resmi'
+                                  : 'Status Kelulusan'}
+                              </p>
+                              <h4 className="font-display text-2xl md:text-3xl font-black uppercase leading-tight mb-3">
+                                {result.status_graduation
+                                  ? `Anda Dinyatakan LULUS dari ${schoolInfo?.school_name || 'SMKN 1 Wonogiri'}`
+                                  : 'Anda Dinyatakan BELUM LULUS'}
+                              </h4>
+                              {!result.status_graduation && (
+                                <p className="text-xs font-medium leading-relaxed opacity-90 max-w-md">
+                                  Mohon maaf, silakan hubungi wali kelas atau admin sekolah
+                                  untuk informasi lebih lanjut mengenai langkah berikutnya.
+                                </p>
+                              )}
+                              <p className="text-[10px] font-bold opacity-60 uppercase tracking-[0.28em] mt-4">
+                                {schoolInfo?.school_name || 'SMKN 1 Wonogiri'} • Mei 2026
+                              </p>
+                           </div>
+
+                           {/* Official digital stamp */}
+                           <div
+                             className={`official-stamp shrink-0 ${
+                               result.status_graduation ? '' : 'is-failed'
+                             }`}
+                             aria-label={result.status_graduation ? 'Stempel LULUS' : 'Stempel BELUM LULUS'}
+                           >
+                              <span className="stamp-eyebrow">
+                                {result.status_graduation ? 'Pengumuman Resmi' : 'Status'}
+                              </span>
+                              <span className="stamp-headline">
+                                {result.status_graduation ? 'LULUS' : 'TIDAK'}
+                              </span>
+                              <span className="stamp-meta">
+                                SKANSAGIRI • 2026
+                              </span>
+                           </div>
+                        </div>
                      </div>
 
                      <div className="mt-10 flex flex-col sm:flex-row gap-4 pt-8 border-t border-slate-100 items-center justify-between">
@@ -1122,17 +1254,19 @@ export default function App() {
                               <FileText size={16} />
                               UNDUH SKL DIGITAL
                            </button>
-                           <button 
+                           <button
                              onClick={() => setResult(null)}
                              className="px-8 bg-slate-100 text-slate-500 py-4 rounded-xl font-black text-xs tracking-widest hover:bg-slate-200 transition-all"
                            >
                              KEMBALI
                            </button>
                         </div>
-                        
+
                         <div className="text-right sm:text-right w-full sm:w-auto order-1 sm:order-2">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">
-                             Powered by: <span className="text-slate-400">Joben Enterprise</span>
+                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                             Created by: <span className="text-slate-700">TIM IT SKANSAGIRI</span>
+                             <span className="mx-2 text-slate-300">|</span>
+                             Powered by: <span className="text-[#0f172a]">Joben Enterprise</span>
                            </p>
                         </div>
                      </div>

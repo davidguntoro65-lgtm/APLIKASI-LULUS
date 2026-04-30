@@ -8,19 +8,26 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * Final official document schema for SMKN 1 Wonogiri 2026.
+     * Mandatory columns: nisn, name, birth_place, birth_date, class,
+     * major (Konsentrasi Keahlian), status_graduation.
      */
     public function up(): void
     {
-        Schema::create('students', function (Blueprint $男) {
-            $男->id();
-            $男->string('nisn')->unique();
-            $男->string('nik')->unique();
-            $男->string('name');
-            $男->date('birth_date');
-            $男->string('class');
-            $男->string('major');
-            $男->boolean('status_graduation')->default(false);
-            $男->timestamps();
+        Schema::create('students', function (Blueprint $table) {
+            $table->id();
+            $table->string('nisn')->unique();
+            $table->string('name');
+            $table->string('birth_place');
+            $table->date('birth_date');
+            $table->string('class');
+            $table->string('major'); // Konsentrasi Keahlian
+            $table->boolean('status_graduation')->default(false);
+            $table->timestamps();
+
+            $table->index('nisn');
+            $table->index(['class', 'major']);
         });
     }
 

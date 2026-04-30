@@ -22,19 +22,26 @@ class AdminController extends Controller
     {
         $query = Student::query();
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nisn', 'like', "%{$search}%");
+                  ->orWhere('nisn', 'like', "%{$search}%")
+                  ->orWhere('class', 'like', "%{$search}%")
+                  ->orWhere('major', 'like', "%{$search}%");
             });
         }
 
-        $students = $query->orderBy('name', 'asc')->paginate(15);
+        // Accessors `formatted_birth_date` and `inline_birth` are auto-appended
+        // by the Student model (see $appends), so the React frontend can render
+        // "Wonogiri, 26 Mei 2008" without re-formatting.
+        $students = $query->orderBy('class')
+                          ->orderBy('name')
+                          ->paginate(15);
 
         return response()->json([
             'success' => true,
-            'data' => $students
+            'data'    => $students,
         ]);
     }
 
@@ -44,19 +51,23 @@ class AdminController extends Controller
     public function updateStudent(Request $request, $id)
     {
         $request->validate([
-            'name' => 'required|string',
+            'name'              => 'required|string',
+            'birth_place'       => 'required|string',
+            'birth_date'        => 'required|date',
+            'class'             => 'required|string',
+            'major'             => 'required|string',
             'status_graduation' => 'required|boolean',
-            'class' => 'required|string',
-            'major' => 'required|string',
         ]);
 
         $student = Student::findOrFail($id);
-        $student->update($request->only(['name', 'status_graduation', 'class', 'major']));
+        $student->update($request->only([
+            'name', 'birth_place', 'birth_date', 'class', 'major', 'status_graduation',
+        ]));
 
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'message' => 'Data siswa berhasil diperbarui',
-            'student' => $student
+            'student' => $student->fresh(),
         ]);
     }
 
