@@ -19,14 +19,23 @@
  *   cannot be triggered by a random visitor.
  *
  * What it does, in order:
+ *   0. chmod 0775 on storage/ + bootstrap/cache/    — best-effort permission
+ *                                         fix so subsequent cache writes and
+ *                                         uploaded files succeed on shared
+ *                                         hosts that ship with 0755 defaults
  *   1. `php artisan migrate --force`   — apply any pending DB migrations
  *   2. `php artisan storage:link`      — create the public/storage symlink so
  *                                         uploaded logos / principal photos
  *                                         are served at /storage/...
- *   3. `php artisan config:clear`      — drop any stale cached config from a
- *                                         previous host (so the new APP_URL
- *                                         takes effect immediately)
- *   4. `php artisan route:clear`       — same idea, for routes
+ *   3. `php artisan optimize:clear`    — single-call nuke of config + route +
+ *                                         view + event + compiled cache
+ *                                         (faster than calling each clear
+ *                                         command individually; recommended
+ *                                         after every redeploy)
+ *   4. `php artisan config:clear`      — safety-net follow-ups in case
+ *      `php artisan route:clear`         optimize:clear is partially blocked
+ *      `php artisan view:clear`          on the host
+ *      `php artisan cache:clear`
  */
 
 namespace App\Http\Controllers;
@@ -59,11 +68,63 @@ class DeployController extends Controller
 
         $report = [];
 
+        // ----------------------------------------------------------------
+        // 0. Best-effort permission fix BEFORE anything else.
+        //    On many shared hosts (cPanel, Cloudways) `storage/` and
+        //    `bootstrap/cache/` ship with 0755 which silently breaks file
+        //    uploads + cache writes. We try to chmod them to 0775 so all
+        //    subsequent steps (especially `optimize:clear`) succeed.
+        //    This is best-effort: we never fail the deploy if chmod is
+        //    blocked by the hosting environment.
+        // ----------------------------------------------------------------
+        $permTargets = [
+            storage_path(),
+            base_path('bootstrap/cache'),
+        ];
+        $permReport = [];
+        foreach ($permTargets as $path) {
+            $shortLabel = str_replace(base_path() . DIRECTORY_SEPARATOR, '', $path);
+            try {
+                if (!is_dir($path)) {
+                    $permReport[$shortLabel] = 'directory not found';
+                    continue;
+                }
+                @chmod($path, 0775);
+                // Walk the tree so nested cache files inherit the new mode.
+                $iter = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+                    \RecursiveIteratorIterator::SELF_FIRST,
+                );
+                foreach ($iter as $item) {
+                    @chmod($item->getPathname(), $item->isDir() ? 0775 : 0664);
+                }
+                $permReport[$shortLabel] = is_writable($path) ? 'writable (0775)' : 'still not writable';
+            } catch (\Throwable $e) {
+                $permReport[$shortLabel] = 'chmod failed: ' . $e->getMessage();
+            }
+        }
+        $report['permissions'] = [
+            'ok'     => collect($permReport)->every(fn ($s) => str_contains((string) $s, 'writable')),
+            'output' => $permReport,
+        ];
+
+        // ----------------------------------------------------------------
+        // Artisan steps — order matters:
+        //   1. migrate     → schema first
+        //   2. storage:link→ public symlink for uploaded images
+        //   3. optimize:clear → nukes config/route/view/event cache in one
+        //      call (faster + more thorough than running them separately)
+        //   4. config/route/view clear → safety net in case `optimize:clear`
+        //      partially failed on a host that disables some sub-commands
+        // ----------------------------------------------------------------
         $steps = [
-            'migrate'      => ['migrate',     ['--force' => true]],
-            'storage:link' => ['storage:link', []],
-            'config:clear' => ['config:clear', []],
-            'route:clear'  => ['route:clear',  []],
+            'migrate'        => ['migrate',        ['--force' => true]],
+            'storage:link'   => ['storage:link',   []],
+            'optimize:clear' => ['optimize:clear', []],
+            'config:clear'   => ['config:clear',   []],
+            'route:clear'    => ['route:clear',    []],
+            'view:clear'     => ['view:clear',     []],
+            'cache:clear'    => ['cache:clear',    []],
         ];
 
         foreach ($steps as $label => [$cmd, $args]) {

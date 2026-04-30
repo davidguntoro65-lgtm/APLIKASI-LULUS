@@ -38,14 +38,31 @@ hard-coded hostname anywhere in the source.
    ```
    https://kelulusan.smkn1wonogiri.sch.id/api/deploy/setup?token=<your DEPLOY_TOKEN>
    ```
-   This single request:
+   This single request now performs the full **portable boot sequence**:
+   - **chmod 0775** on `storage/` + `bootstrap/cache/` (best-effort — fixes the
+     "permission denied" you get on most shared hosts after upload)
    - applies all DB migrations (`php artisan migrate --force`)
    - creates the public storage symlink (`php artisan storage:link`)
-   - clears any stale cached config / routes from the previous host
+   - **`php artisan optimize:clear`** — wipes every cached layer
+     (config + route + view + events + compiled) so a fresh APP_URL,
+     a new migration, or an updated controller takes effect immediately.
+   - safety-net follow-ups: `config:clear`, `route:clear`, `view:clear`,
+     `cache:clear` — guarantees no stale cache survives even if
+     `optimize:clear` is partially blocked by the host.
 
    You should see a JSON response like:
    ```json
-   { "success": true, "message": "Setup selesai.", "app_url": "https://...", "steps": { ... } }
+   {
+     "success": true,
+     "message": "Setup selesai.",
+     "app_url": "https://...",
+     "steps": {
+       "permissions":    { "ok": true, "output": { "storage": "writable (0775)", "bootstrap/cache": "writable (0775)" } },
+       "migrate":        { "ok": true, "output": "Nothing to migrate." },
+       "storage:link":   { "ok": true, "output": "OK" },
+       "optimize:clear": { "ok": true, "output": "..." }
+     }
+   }
    ```
 
 That's it — the portal is live on the new domain. You can re-run the setup

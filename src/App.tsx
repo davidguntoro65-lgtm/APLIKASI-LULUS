@@ -717,6 +717,36 @@ export default function App() {
     });
 
   /**
+   * Centralised pre-upload validator. Blocks anything > `maxMB` so we never
+   * waste a server round-trip (or worse, hammer the canvas cropper) with a
+   * 10 MB DSLR photo. Returns `true` when the file is OK, `false` otherwise
+   * and emits an inline toast explaining what went wrong.
+   */
+  const validateImageFile = (file: File, maxMB = 2): boolean => {
+    if (!file.type.startsWith('image/')) {
+      showToast('error', 'Format file tidak didukung. Gunakan JPG, PNG, atau WebP.');
+      return false;
+    }
+    const sizeMB = file.size / (1024 * 1024);
+    if (sizeMB > maxMB) {
+      showToast(
+        'error',
+        `Ukuran gambar ${sizeMB.toFixed(1)} MB melebihi batas ${maxMB} MB. ` +
+          `Mohon kompres atau pilih foto yang lebih kecil agar proses unggah cepat.`,
+      );
+      return false;
+    }
+    // Soft warning band: 1.2 – 2 MB still passes but we let the admin know.
+    if (sizeMB > 1.2) {
+      showToast(
+        'info',
+        `Ukuran gambar ${sizeMB.toFixed(1)} MB. Proses unggah mungkin sedikit lebih lama.`,
+      );
+    }
+    return true;
+  };
+
+  /**
    * Crop & resize an image File to **exactly** 600×400 (3:2) using a hidden
    * canvas with `object-fit: cover` semantics — same algorithm Intervention
    * Image's `cover()` / `fit()` runs server-side, so the localStore fallback
@@ -780,15 +810,27 @@ export default function App() {
     if (e.target) e.target.value = '';
     if (!files.length) return;
 
+    // Pre-flight: drop oversize / wrong-type files BEFORE we start any work
+    // so the admin gets one clear "X file ditolak karena terlalu besar"
+    // instead of N silent failures inside the upload loop.
+    const valid: File[] = [];
+    let rejected = 0;
+    for (const file of files) {
+      if (validateImageFile(file, 2)) valid.push(file);
+      else rejected++;
+    }
+    if (!valid.length) {
+      if (rejected) {
+        showToast('error', `${rejected} file ditolak. Pastikan gambar < 2 MB.`);
+      }
+      return;
+    }
+
     setGalleryUploading(true);
     let added = 0;
-    let failed = 0;
+    let failed = rejected;
 
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) {
-        failed++;
-        continue;
-      }
+    for (const file of valid) {
       try {
         const dataUrl = await cropToGallerySize(file);
         const formData = new FormData();
@@ -2186,10 +2228,11 @@ export default function App() {
                                  <input 
                                     type="file" 
                                     className="absolute inset-0 opacity-0 cursor-pointer" 
-                                    accept="image/*"
+                                    accept="image/png,image/jpeg,image/webp"
                                     onChange={(e) => {
                                        const file = e.target.files?.[0];
-                                       if (file) {
+                                       e.target.value = '';
+                                       if (file && validateImageFile(file, 2)) {
                                           setLogoFile(file);
                                           setLogoPreview(URL.createObjectURL(file));
                                        }
@@ -2291,10 +2334,11 @@ export default function App() {
                                  <input
                                     type="file"
                                     className="absolute inset-0 opacity-0 cursor-pointer"
-                                    accept="image/*"
+                                    accept="image/png,image/jpeg,image/webp"
                                     onChange={(e) => {
                                        const file = e.target.files?.[0];
-                                       if (file) {
+                                       e.target.value = '';
+                                       if (file && validateImageFile(file, 2)) {
                                           setPrincipalPhotoFile(file);
                                           setPrincipalPhotoPreview(URL.createObjectURL(file));
                                        }
@@ -2464,15 +2508,32 @@ export default function App() {
                       </div>
                    </div>
 
-                   <button 
-                    onClick={handleSaveSettings}
-                    disabled={isLoading}
-                    className="quantum-button w-full flex items-center justify-center gap-3"
+                   {/* Async save bar — disables itself + shows a clear progress
+                        affordance so the admin never double-clicks. The label
+                        switches between idle / saving / done states. */}
+                   <button
+                      onClick={handleSaveSettings}
+                      disabled={isLoading}
+                      aria-busy={isLoading}
+                      className="quantum-button w-full flex items-center justify-center gap-3 disabled:opacity-80 disabled:cursor-progress transition-all"
                    >
-                      {isLoading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                      <Save size={16} />
-                      Simpan Semua Perubahan
+                      {isLoading ? (
+                         <>
+                            <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
+                            <span>Menyimpan, mohon tunggu...</span>
+                         </>
+                      ) : (
+                         <>
+                            <Save size={16} />
+                            <span>Simpan Semua Perubahan</span>
+                         </>
+                      )}
                    </button>
+                   {isLoading && (
+                      <p className="text-[11px] text-center text-[#6B7280] mt-2 font-medium">
+                         Sedang memproses gambar dan menyimpan ke server...
+                      </p>
+                   )}
 
                 </div>
               </motion.div>
