@@ -1249,8 +1249,16 @@ export default function App() {
                   }}
                   className="quantum-card-floating p-7 sm:p-9"
                 >
+                  <AnimatePresence mode="wait" initial={false}>
                   {!isReady && !maintenanceMode ? (
-                    <div className="text-center">
+                    <motion.div
+                      key="countdown-state"
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.97, filter: 'blur(4px)' }}
+                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                      className="text-center"
+                    >
                       <div className="inline-flex p-3 bg-[#EFF4FF] rounded-2xl text-[#1D4ED8] mb-5">
                         <Calendar size={28} />
                       </div>
@@ -1279,9 +1287,15 @@ export default function App() {
                           saat hitung mundur mencapai angka nol.
                         </p>
                       </div>
-                    </div>
+                    </motion.div>
                   ) : (
-                    <>
+                    <motion.div
+                      key="search-state"
+                      initial={{ opacity: 0, y: 14, scale: 0.97, filter: 'blur(4px)' }}
+                      animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+                    >
                       <div className="mb-7">
                         <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1D4ED8] mb-1.5">Cek Hasil Kelulusan</p>
                         <h2 className="text-2xl font-extrabold text-[#111827] tracking-tight">Masukkan Data Anda</h2>
@@ -1380,8 +1394,9 @@ export default function App() {
                           <p className="text-[11px] font-medium text-[#6B7280] leading-relaxed">Layanan sedang dalam pemeliharaan rutin oleh Tim IT Skansagiri.</p>
                         </motion.div>
                       )}
-                    </>
+                    </motion.div>
                   )}
+                  </AnimatePresence>
                 </motion.div>
               </div>
             </motion.div>
