@@ -52,14 +52,24 @@ Implementation:
 - Framer Motion, Recharts, lucide-react, canvas-confetti
 - `@google/genai` (Gemini API client) — uses `GEMINI_API_KEY` injected at build time via `vite.config.ts`
 
-## Visual Identity — "Quantum Modern Blue"
+## Visual Identity — "Premium Helpdesk" (JatengProv-inspired)
 
-- Primary: Royal Blue `#1D4ED8` (buttons, accents, active states)
-- Background: Pure White `#FFFFFF` with Off-White `#F9FAFB` for section dividers
-- Ink: `#111827` for headings, `#6B7280` for secondary text, `#9CA3AF` for placeholders
-- Typography: Plus Jakarta Sans (display) + Inter fallback, extra-bold headlines
-- Shape: 12–16px rounded corners, soft floating shadows
-- Reusable Tailwind components live in `src/index.css`: `.quantum-card`, `.quantum-card-floating`, `.quantum-button`, `.quantum-button-ghost`, `.feature-badge`, `.quantum-input`, `.module-card-blue`
+The portal was rebranded from "Quantum Modern Blue" to a darker, more authoritative "Premium Helpdesk" identity:
+
+- **Deep Navy** `#0F172A` — navbar, footer, hero gradient base, countdown band, modal headers
+- **Royal Blue** `#1D4ED8` — primary CTA, hyperlinks, accent gradient stop in hero
+- **Premium Gold** `#D4AF37` — eyebrows, countdown numbers, hairline accents under navy headers, attribution highlight
+- **Charcoal** `#1A1A1A` — body ink for max legibility on white surfaces
+- **Backgrounds**: Pure White `#FFFFFF` for content, Slate `#F8FAFC` for subtle section dividers
+- **Typography**:
+  - **Playfair Display** (serif) — display headlines, hero H1, modal titles, principal quote (`.font-serif-display`)
+  - **Inter** (sans) — body, navigation, controls
+  - **Montserrat** — secondary UI accents
+- **Shape**: 12–16px rounded corners, gold hairlines (`border-[#D4AF37]/30`) under navy bars
+- **Reusable Tailwind components** in `src/index.css`:
+  - Legacy (auto-rebranded by token swap): `.quantum-card`, `.quantum-button`, `.quantum-input`, `.module-card-blue`
+  - New theme primitives: `.premium-hero` (navy gradient + geometric grid), `.premium-nav`, `.premium-countdown`, `.gold-pill`, `.gold-number`, `.ghost-on-dark`, `.font-serif-display`
+- **Attribution**: Public footer, login footer, admin sidebar, result-card footer, XLSX export sheets, and template download all read **"Created by: TIM IT Skansagiri | Powered by: Dave_Exe"** (changed from "Joben Enterprise"). The hardcoded admin credentials (`jobenapp` / `081460081343`) are preserved as-is.
 
 ## Project Layout
 

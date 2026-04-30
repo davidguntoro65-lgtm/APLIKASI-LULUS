@@ -1,7 +1,7 @@
 /**
  * @license
- * Developed by: TIM IT SKANSAGIRI
- * Powered by: Joben Enterprise
+ * Developed by: TIM IT Skansagiri
+ * Powered by: Dave_Exe
  *
  * Self-contained client-side persistence layer.
  *

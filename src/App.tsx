@@ -168,7 +168,7 @@ const downloadStudentTemplate = (): void => {
     ['• Baris 1 (header) wajib persis seperti pada sheet "Data Siswa".'],
     ['• Data siswa baru dimulai dari baris 2.'],
     ['• Hapus baris contoh sebelum mengunggah file.'],
-    ['• Disusun oleh TIM IT SKANSAGIRI — Powered by Joben Enterprise.'],
+    ['• Disusun oleh TIM IT Skansagiri — Powered by Dave_Exe.'],
   ];
   const wsInfo = XLSX.utils.aoa_to_sheet(instructions);
   wsInfo['!cols'] = [{ wch: 18 }, { wch: 70 }];
@@ -901,7 +901,7 @@ export default function App() {
       ['Sudah Mengecek',  stats.checked],
       ['Passing Rate (%)', stats.total ? +((stats.lulus / stats.total) * 100).toFixed(2) : 0],
       [],
-      ['Disusun oleh TIM IT SKANSAGIRI — Powered by Joben Enterprise.'],
+      ['Disusun oleh TIM IT Skansagiri — Powered by Dave_Exe.'],
     ];
     const wsSum = XLSX.utils.aoa_to_sheet(summary);
     wsSum['!cols'] = [{ wch: 28 }, { wch: 28 }];
@@ -1307,9 +1307,9 @@ export default function App() {
         </div>
 
         <footer className="px-6 md:px-12 py-6 text-center text-[11px] text-slate-400 font-medium">
-          Created by: <span className="text-slate-500 font-semibold">TIM IT SKANSAGIRI</span>
+          Created by: <span className="text-slate-500 font-semibold">TIM IT Skansagiri</span>
           <span className="mx-2 text-slate-300">|</span>
-          Powered by: <span className="text-slate-500 font-semibold">Joben Enterprise</span>
+          Powered by: <span className="text-slate-500 font-semibold">Dave_Exe</span>
         </footer>
       </div>
     );
@@ -1327,7 +1327,7 @@ export default function App() {
               </div>
               <h1 className="font-extrabold tracking-tight text-base">Portal Admin</h1>
             </div>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest">TIM IT SKANSAGIRI</p>
+            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest">TIM IT Skansagiri</p>
           </div>
           
           <nav className="flex-1 p-4 space-y-2">
@@ -1370,8 +1370,8 @@ export default function App() {
 
           <div className="p-6 border-t border-white/5 space-y-4">
              <div className="p-3 bg-white/5 rounded-xl text-[10px] text-slate-400 font-medium">
-               <p className="mb-1">Versi Sistem: 2.0.26</p>
-               <p>Joben Enterprise © 2026</p>
+               <p className="mb-1">Versi Sistem: 2.1.26</p>
+               <p>Dave_Exe © 2026</p>
              </div>
              <div className="px-1 pb-1">
                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/80 mb-0.5">Akun Aktif</p>
@@ -2450,7 +2450,7 @@ export default function App() {
                 {/* Footer credit */}
                 <div className="text-center text-[11px] text-slate-400 font-medium pt-4">
                   <p className="flex items-center justify-center gap-1.5">
-                    Dibuat dengan <Heart size={11} className="text-rose-400 fill-rose-400" /> oleh <strong className="text-slate-600">TIM IT SKANSAGIRI</strong> &middot; Powered by <strong className="text-slate-600">Joben Enterprise</strong>
+                    Dibuat dengan <Heart size={11} className="text-rose-400 fill-rose-400" /> oleh <strong className="text-slate-600">TIM IT Skansagiri</strong> &middot; Powered by <strong className="text-slate-600">Dave_Exe</strong>
                   </p>
                 </div>
               </motion.div>
@@ -2690,10 +2690,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white font-sans">
-      {/* Clean Modern Header */}
-      <header className="bg-white border-b border-[#E5E7EB] px-6 md:px-12 py-5 flex justify-between items-center no-print sticky top-0 z-40 backdrop-blur-md bg-white/90">
+      {/* Premium Helpdesk Navbar — Deep Navy */}
+      <header className="premium-nav px-6 md:px-12 py-4 flex justify-between items-center no-print sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-[#1D4ED8] rounded-xl flex items-center justify-center overflow-hidden shadow-[0_8px_20px_-8px_rgba(29,78,216,0.6)]">
+          <div className="w-11 h-11 bg-white/10 ring-1 ring-white/15 rounded-xl flex items-center justify-center overflow-hidden">
              {schoolInfo?.school_logo ? (
                 <img src={resolveAssetUrl(schoolInfo.school_logo) || ''} className="w-full h-full object-contain p-1.5" alt="Logo" />
              ) : (
@@ -2701,19 +2701,29 @@ export default function App() {
              )}
           </div>
           <div className="leading-tight">
-            <h1 className="text-[15px] font-extrabold text-[#111827] tracking-tight">
+            <h1 className="text-[15px] font-extrabold text-white tracking-tight">
               {schoolInfo?.school_name || "SMKN 1 Wonogiri"}
             </h1>
-            <p className="text-[10px] text-[#6B7280] font-medium tracking-wide">Quantum Graduation Portal · 2026</p>
+            <p className="text-[10px] text-slate-400 font-medium tracking-[0.18em] uppercase">Portal Kelulusan · TA 2025/2026</p>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-full bg-[#F9FAFB] border border-[#E5E7EB]">
-          <Calendar size={12} className="text-[#1D4ED8]" />
-          <p className="text-[11px] font-semibold text-[#111827]">TA 2025 / 2026</p>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10">
+            <Calendar size={12} className="text-[#D4AF37]" />
+            <p className="text-[11px] font-semibold text-slate-200">TA 2025 / 2026</p>
+          </div>
+          <button
+            onClick={() => navigateTo(ROUTE_LOGIN)}
+            className="ghost-on-dark"
+            title="Login Panel Admin"
+          >
+            <Lock size={12} />
+            <span className="hidden sm:inline">Admin Login</span>
+          </button>
         </div>
       </header>
 
-      <main className="flex-1 px-4 sm:px-6 md:px-12 py-10 md:py-16">
+      <main className="flex-1 premium-hero px-4 sm:px-6 md:px-12 py-12 md:py-20 relative">
         <AnimatePresence mode="wait">
           {!result ? (
             <motion.div
@@ -2721,7 +2731,7 @@ export default function App() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98 }}
-              className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center"
+              className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center relative z-10"
             >
               {/* LEFT: Hero text */}
               <motion.div
@@ -2734,18 +2744,17 @@ export default function App() {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.05, ease: 'easeOut' }}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EFF4FF] border border-[#DBEAFE]"
+                  className="gold-pill"
                 >
-                  <Sparkles size={12} className="text-[#1D4ED8]" />
-                  <span className="text-[11px] font-semibold text-[#1D4ED8] tracking-wide">Sistem Pengumuman Resmi · TA 2025/2026</span>
+                  <Sparkles size={12} />
+                  <span>Sistem Pengumuman Resmi · TA 2025/2026</span>
                 </motion.div>
 
                 <motion.h1
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-                  className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold text-[#1D4ED8] leading-[1.08] tracking-tight"
-                  style={{ fontFamily: '"Plus Jakarta Sans", "Inter", system-ui, sans-serif' }}
+                  className="font-serif-display text-4xl sm:text-5xl lg:text-[58px] font-extrabold text-white leading-[1.08] tracking-tight"
                 >
                   {schoolInfo?.headline
                     ? schoolInfo.headline
@@ -2756,12 +2765,29 @@ export default function App() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.7, delay: 0.25, ease: 'easeOut' }}
-                  className="text-[17px] leading-relaxed text-[#6B7280] max-w-lg font-normal"
+                  className="text-[17px] leading-relaxed text-slate-300 max-w-lg font-normal"
                 >
                   Periksa status kelulusan Anda secara aman, cepat, dan akurat.
                   Cukup masukkan NISN dan tanggal lahir — hasil resmi tersedia
                   langsung dari basis data sekolah dengan enkripsi tingkat lembaga.
                 </motion.p>
+
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.7, delay: 0.4 }}
+                  className="flex flex-wrap gap-2 pt-2"
+                >
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-slate-200">
+                    <ShieldCheck size={12} className="text-[#D4AF37]" /> Data Terverifikasi
+                  </span>
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-slate-200">
+                    <Lock size={12} className="text-[#D4AF37]" /> Enkripsi Lembaga
+                  </span>
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-slate-200">
+                    <Activity size={12} className="text-[#D4AF37]" /> Realtime
+                  </span>
+                </motion.div>
               </motion.div>
 
               {/* RIGHT: Search / Countdown card */}
@@ -2838,17 +2864,17 @@ export default function App() {
                           { label: 'MENIT', value: countdown.minutes },
                           { label: 'DETIK', value: countdown.seconds },
                         ].map((item, i) => (
-                          <div key={i} className="bg-[#F9FAFB] py-4 rounded-xl border border-[#E5E7EB]">
-                            <p className="text-3xl sm:text-4xl font-extrabold text-[#111827] quantum-pulse tracking-tight">
+                          <div key={i} className="bg-[#0F172A] py-4 rounded-xl border border-[#D4AF37]/30">
+                            <p className="gold-number text-3xl sm:text-4xl font-extrabold quantum-pulse">
                               {String(item.value).padStart(2, '0')}
                             </p>
-                            <p className="text-[9px] font-semibold text-[#6B7280] tracking-[0.18em] mt-1.5">{item.label}</p>
+                            <p className="text-[9px] font-semibold text-white/70 tracking-[0.22em] mt-1.5">{item.label}</p>
                           </div>
                         ))}
                       </div>
 
-                      <div className="p-4 bg-[#EFF4FF] rounded-xl border border-[#DBEAFE]">
-                        <p className="text-[11px] font-medium text-[#1E40AF] leading-relaxed">
+                      <div className="p-4 bg-[#0F172A]/[0.04] rounded-xl border border-[#0F172A]/15">
+                        <p className="text-[11px] font-medium text-[#1A1A1A] leading-relaxed">
                           Formulir pencarian akan otomatis terbuka secara real-time
                           saat hitung mundur mencapai angka nol.
                         </p>
@@ -2976,12 +3002,12 @@ export default function App() {
                 {/* ----------------------------------------------------------
                     Official "Prestige" Result Card — Quantum Modern Blue
                     ---------------------------------------------------------- */}
-                <div className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_24px_60px_-20px_rgba(29,78,216,0.18),0_8px_24px_-12px_rgba(17,24,39,0.10)] overflow-hidden relative font-display">
+                <div className="bg-white border border-[#0F172A]/20 rounded-2xl shadow-[0_24px_60px_-20px_rgba(15,23,42,0.22),0_8px_24px_-12px_rgba(15,23,42,0.10)] overflow-hidden relative font-serif-display">
                    {/* SKANSAGIRI watermark */}
                    <div className="watermark-text">SKANSAGIRI</div>
 
                    {/* Document header bar */}
-                   <div className="bg-[#111827] text-white px-6 md:px-10 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 relative z-10">
+                   <div className="bg-[#0F172A] text-white px-6 md:px-10 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 relative z-10 border-b border-[#D4AF37]/40">
                       <div className="flex items-center gap-3">
                         {schoolLogo ? (
                           <img
@@ -2995,7 +3021,7 @@ export default function App() {
                           </div>
                         )}
                         <div className="leading-tight">
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.32em] text-[#60A5FA]">
+                          <p className="text-[9px] font-semibold uppercase tracking-[0.32em] text-[#D4AF37]">
                             Surat Pengumuman Resmi
                           </p>
                           <p className="text-xs font-bold uppercase tracking-widest">
@@ -3144,9 +3170,9 @@ export default function App() {
                         </div>
 
                         <p className="text-[10px] font-medium text-slate-400 tracking-wide order-1 sm:order-2">
-                          Created by: <span className="text-slate-500">TIM IT SKANSAGIRI</span>
+                          Created by: <span className="text-slate-500">TIM IT Skansagiri</span>
                           <span className="mx-2 text-slate-300">|</span>
-                          Powered by: <span className="text-[#1D4ED8] font-semibold">Joben Enterprise</span>
+                          Powered by: <span className="text-[#1D4ED8] font-semibold">Dave_Exe</span>
                         </p>
                      </div>
                   </div>
@@ -3156,13 +3182,13 @@ export default function App() {
           </AnimatePresence>
       </main>
 
-      {/* Motivational Section from Kepala Sekolah */}
+      {/* Motivational Section from Kepala Sekolah — conditional, hidden when empty */}
       {motivationMessage && (
-        <section className="px-4 sm:px-6 md:px-12 py-12 bg-[#F9FAFB] border-t border-[#E5E7EB] no-print">
+        <section className="px-4 sm:px-6 md:px-12 py-14 bg-white border-t border-[#E2E8F0] no-print">
           <div className="max-w-4xl mx-auto">
             <div className="module-card-blue p-8 sm:p-10 flex flex-col sm:flex-row gap-6 items-center sm:items-start">
               <div className="shrink-0 relative">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-[#DBEAFE] bg-white overflow-hidden flex items-center justify-center">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-[#0F172A]/15 bg-white overflow-hidden flex items-center justify-center">
                   {(principalPhotoPreview || principalPhoto) ? (
                     <img
                       src={principalPhotoPreview || resolveAssetUrl(principalPhoto) || ''}
@@ -3170,22 +3196,54 @@ export default function App() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User size={36} className="text-[#9CA3AF]" strokeWidth={1.5} />
+                    <User size={36} className="text-[#94A3B8]" strokeWidth={1.5} />
                   )}
                 </div>
-                <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-[#1D4ED8] rounded-full flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(29,78,216,0.6)]">
-                  <Quote size={14} className="text-white" />
+                <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-[#0F172A] rounded-full flex items-center justify-center ring-2 ring-[#D4AF37]/40">
+                  <Quote size={14} className="text-[#D4AF37]" />
                 </div>
               </div>
               <div className="flex-1 text-center sm:text-left">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1D4ED8] mb-2">Sambutan Kepala Sekolah</p>
-                <p className="text-[15px] sm:text-[16px] leading-relaxed text-[#111827] font-medium italic">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1D4ED8] mb-2">Sambutan Kepala Sekolah</p>
+                <p className="font-serif-display text-[18px] sm:text-[20px] leading-relaxed text-[#1A1A1A] font-medium italic">
                   &ldquo;{motivationMessage}&rdquo;
                 </p>
                 {principalName && (
-                  <p className="text-sm font-semibold text-[#111827] mt-4">— {principalName}</p>
+                  <p className="text-sm font-bold text-[#1A1A1A] mt-4 tracking-tight">— {principalName}</p>
                 )}
               </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Premium Countdown Footer — Deep Navy band with Gold numbers */}
+      {!result && schoolInfo?.announcement_datetime && !isReady && (
+        <section className="premium-countdown px-4 sm:px-6 md:px-12 py-12 no-print">
+          <div className="max-w-5xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-[#D4AF37]/30 mb-4">
+              <Calendar size={12} className="text-[#D4AF37]" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37]">Hitung Mundur Pengumuman Resmi</span>
+            </div>
+            <h3 className="font-serif-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-8">
+              Pengumuman Kelulusan {schoolInfo?.school_name || 'SMKN 1 Wonogiri'}
+            </h3>
+            <div className="grid grid-cols-4 gap-3 sm:gap-5 max-w-3xl mx-auto">
+              {[
+                { label: 'HARI', value: countdown.days },
+                { label: 'JAM', value: countdown.hours },
+                { label: 'MENIT', value: countdown.minutes },
+                { label: 'DETIK', value: countdown.seconds },
+              ].map((item, i) => (
+                <div key={i} className="bg-white/[0.03] border border-[#D4AF37]/25 rounded-2xl py-6 sm:py-8">
+                  <p className="gold-number text-4xl sm:text-6xl font-extrabold quantum-pulse">
+                    {String(item.value).padStart(2, '0')}
+                  </p>
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-white tracking-[0.28em] mt-2">
+                    {item.label}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -3218,18 +3276,18 @@ export default function App() {
               }}
               className="relative w-full max-w-xl bg-white rounded-2xl shadow-[0_40px_120px_-20px_rgba(15,23,42,0.45)] overflow-hidden border border-[#E5E7EB] max-h-[90vh] flex flex-col"
             >
-              {/* Header */}
-              <div className="bg-[#1D4ED8] px-6 sm:px-8 py-5 flex items-center gap-3 text-white">
-                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-                  <Megaphone size={20} className="text-white" strokeWidth={2.4} />
+              {/* Header — Deep Navy */}
+              <div className="bg-[#0F172A] px-6 sm:px-8 py-5 flex items-center gap-3 text-white border-b border-[#D4AF37]/30">
+                <div className="w-10 h-10 rounded-xl bg-white/10 ring-1 ring-white/15 flex items-center justify-center shrink-0">
+                  <Megaphone size={20} className="text-[#D4AF37]" strokeWidth={2.4} />
                 </div>
                 <div className="leading-tight">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37]">
                     Pakta Integritas Siswa
                   </p>
                   <h3
                     id="integrity-pact-title"
-                    className="text-base sm:text-lg font-extrabold tracking-tight"
+                    className="font-serif-display text-base sm:text-lg font-extrabold tracking-tight"
                   >
                     Informasi Penting &amp; Himbauan
                   </h3>
@@ -3321,24 +3379,24 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Clean Modern Footer */}
-      <footer className="px-6 md:px-12 py-8 bg-white border-t border-[#E5E7EB] flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
+      {/* Premium Footer — Deep Navy */}
+      <footer className="px-6 md:px-12 py-8 bg-[#0F172A] border-t border-[#D4AF37]/20 flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
         <div className="flex items-center gap-4">
-          <p className="text-xs font-semibold text-[#111827]">
+          <p className="text-xs font-semibold text-white">
             © 2026 {schoolInfo?.school_name || "SMKN 1 Wonogiri"}
           </p>
           <button
             onClick={() => navigateTo(ROUTE_LOGIN)}
-            className="text-[11px] font-medium text-[#6B7280] hover:text-[#1D4ED8] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E5E7EB] hover:border-[#DBEAFE] hover:bg-[#EFF4FF]"
+            className="text-[11px] font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/15 hover:border-[#D4AF37]/40 hover:bg-white/5"
           >
             <LayoutDashboard size={11} />
             Portal Admin
           </button>
         </div>
         <p className="text-[11px] text-slate-400 font-medium">
-          Created by: <span className="text-slate-500 font-semibold">TIM IT SKANSAGIRI</span>
-          <span className="mx-2 text-slate-300">|</span>
-          Powered by: <span className="text-slate-500 font-semibold">Joben Enterprise</span>
+          Created by: <span className="text-slate-300 font-semibold">TIM IT Skansagiri</span>
+          <span className="mx-2 text-slate-500">|</span>
+          Powered by: <span className="text-[#D4AF37] font-semibold">Dave_Exe</span>
         </p>
       </footer>
     </div>
