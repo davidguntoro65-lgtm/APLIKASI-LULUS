@@ -210,6 +210,7 @@ export default function App() {
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [isReady, setIsReady] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   // Fetch Public Info
   const fetchPublicInfo = async () => {
@@ -227,6 +228,8 @@ export default function App() {
       }
     } catch (e) {
       console.error("Failed to fetch school info", e);
+    } finally {
+      setIsBootstrapping(false);
     }
   };
 
@@ -1106,6 +1109,51 @@ export default function App() {
     );
   }
 
+  // Initial loading skeleton — prevents blank-white flash while /api/school-info resolves
+  if (isBootstrapping) {
+    return (
+      <div className="min-h-screen flex flex-col bg-white font-sans">
+        <div className="bg-white border-b border-[#E5E7EB] px-6 md:px-12 py-5 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-[#EFF4FF] rounded-xl animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-3 w-40 bg-[#EFF4FF] rounded animate-pulse" />
+              <div className="h-2 w-28 bg-[#F3F4F6] rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="h-7 w-28 bg-[#F3F4F6] rounded-full animate-pulse" />
+        </div>
+        <main className="flex-1 px-4 sm:px-6 md:px-12 py-10 md:py-16">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div className="space-y-5">
+              <div className="h-7 w-56 bg-[#EFF4FF] rounded-full animate-pulse" />
+              <div className="h-12 w-full bg-[#F3F4F6] rounded-xl animate-pulse" />
+              <div className="h-12 w-5/6 bg-[#F3F4F6] rounded-xl animate-pulse" />
+              <div className="h-12 w-2/3 bg-[#EFF4FF] rounded-xl animate-pulse" />
+              <div className="h-4 w-full bg-[#F9FAFB] rounded animate-pulse mt-6" />
+              <div className="h-4 w-11/12 bg-[#F9FAFB] rounded animate-pulse" />
+            </div>
+            <div className="quantum-card-floating p-9 space-y-5">
+              <div className="h-12 w-12 bg-[#EFF4FF] rounded-2xl mx-auto animate-pulse" />
+              <div className="h-6 w-3/4 bg-[#F3F4F6] rounded mx-auto animate-pulse" />
+              <div className="h-4 w-1/2 bg-[#F9FAFB] rounded mx-auto animate-pulse" />
+              <div className="grid grid-cols-4 gap-2.5 pt-4">
+                {[0,1,2,3].map(i => (
+                  <div key={i} className="h-20 bg-[#F9FAFB] rounded-xl animate-pulse" />
+                ))}
+              </div>
+              <div className="h-12 w-full bg-[#EFF4FF] rounded-xl animate-pulse mt-4" />
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-2 mt-12 text-[#6B7280]">
+            <div className="w-3.5 h-3.5 border-2 border-[#DBEAFE] border-t-[#1D4ED8] rounded-full animate-spin" />
+            <span className="text-[11px] font-semibold tracking-wide">Memuat data sekolah…</span>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-white font-sans">
       {/* Clean Modern Header */}
@@ -1145,15 +1193,18 @@ export default function App() {
               <div className="space-y-7">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EFF4FF] border border-[#DBEAFE]">
                   <Sparkles size={12} className="text-[#1D4ED8]" />
-                  <span className="text-[11px] font-semibold text-[#1D4ED8] tracking-wide">Sistem Pengumuman Resmi 2026</span>
+                  <span className="text-[11px] font-semibold text-[#1D4ED8] tracking-wide">Sistem Pengumuman Resmi · TA 2025/2026</span>
                 </div>
 
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#111827] leading-[1.05] tracking-tight">
-                  Quantum Portal<br />Kelulusan untuk{' '}
-                  <span className="relative inline-block">
-                    <span className="relative z-10 text-[#1D4ED8]">Siswa Modern</span>
-                    <span className="absolute left-0 right-0 bottom-1 h-3 bg-[#DBEAFE] -z-0 rounded-sm"></span>
-                  </span>
+                <h1
+                  className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold text-[#1D4ED8] leading-[1.08] tracking-tight"
+                  style={{ fontFamily: '"Plus Jakarta Sans", "Inter", system-ui, sans-serif' }}
+                >
+                  Portal Kelulusan Online{' '}
+                  <span className="text-[#111827]">
+                    {schoolInfo?.school_name || 'SMK Negeri 1 Wonogiri'}
+                  </span>{' '}
+                  TA 2025/2026
                 </h1>
 
                 <p className="text-[17px] leading-relaxed text-[#6B7280] max-w-lg font-normal">
@@ -1164,7 +1215,7 @@ export default function App() {
 
                 <div className="flex flex-wrap items-center gap-6 pt-2">
                   <div>
-                    <p className="text-3xl font-extrabold text-[#111827] tracking-tight">{statsData.total || 450}</p>
+                    <p className="text-3xl font-extrabold text-[#111827] tracking-tight">{statsData?.total ?? 450}</p>
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] mt-1">Total Siswa</p>
                   </div>
                   <div className="w-px h-10 bg-[#E5E7EB]" />
@@ -1315,11 +1366,11 @@ export default function App() {
                         <motion.div
                           initial={{ opacity: 0, scale: 0.96 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="mt-6 p-5 bg-[#111827] text-white rounded-2xl text-center"
+                          className="mt-6 p-5 bg-[#EFF4FF] border border-[#DBEAFE] rounded-2xl text-center"
                         >
                           <Settings size={22} className="mx-auto mb-2 text-[#1D4ED8]" />
-                          <p className="text-[11px] font-bold uppercase tracking-widest text-[#60A5FA] mb-1.5">Maintenance Mode</p>
-                          <p className="text-[11px] font-medium text-slate-300 leading-relaxed">Layanan sedang dalam pemeliharaan rutin oleh Tim IT Skansagiri.</p>
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-[#1D4ED8] mb-1.5">Maintenance Mode</p>
+                          <p className="text-[11px] font-medium text-[#6B7280] leading-relaxed">Layanan sedang dalam pemeliharaan rutin oleh Tim IT Skansagiri.</p>
                         </motion.div>
                       )}
                     </>
