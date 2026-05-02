@@ -417,6 +417,7 @@ export default function App() {
     if (json.success && json.data) {
       setSchoolInfo(json.data);
       setMaintenanceMode(!!json.data.maintenance_mode);
+      setShowUnduhSkl(!!json.data.show_unduh_skl);
       setIsReady(!!json.data.announcement_active);
       if (json.data.principal_photo) setPrincipalPhoto(json.data.principal_photo);
       if (typeof json.data.motivation_message === 'string' && json.data.motivation_message.trim() !== '') {
@@ -516,6 +517,7 @@ export default function App() {
   const [adminSearch, setAdminSearch] = useState("");
   const [editStudent, setEditStudent] = useState<any | null>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [showUnduhSkl, setShowUnduhSkl] = useState(false);
 
   // Bulk-action selection for the Data Siswa table — tracked as an id Set
   // so checking and unchecking individual rows is O(1). The selection is
@@ -635,6 +637,7 @@ export default function App() {
       if (d.announcement_date) setAnnouncementDate(d.announcement_date);
       if (d.announcement_time) setAnnouncementTime(d.announcement_time);
       setMaintenanceMode(!!d.maintenance_mode);
+      setShowUnduhSkl(!!d.show_unduh_skl);
       if (d.school_name) setSchoolName(d.school_name);
       if (d.school_npsn) setSchoolNpsn(d.school_npsn);
       if (d.school_address) setSchoolAddress(d.school_address);
@@ -974,6 +977,7 @@ export default function App() {
        formData.append('announcement_date', announcementDate);
        formData.append('announcement_time', announcementTime);
        formData.append('maintenance_mode', maintenanceMode ? '1' : '0');
+       formData.append('show_unduh_skl', showUnduhSkl ? '1' : '0');
        formData.append('school_name', schoolName);
        formData.append('school_npsn', schoolNpsn);
        formData.append('school_address', schoolAddress);
@@ -989,6 +993,7 @@ export default function App() {
          announcement_date: announcementDate,
          announcement_time: announcementTime,
          maintenance_mode: maintenanceMode,
+         show_unduh_skl: showUnduhSkl,
          headline: headline,
          school_name: schoolName,
          school_npsn: schoolNpsn,
@@ -2505,6 +2510,24 @@ export default function App() {
                                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-all ${maintenanceMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
                               </div>
                            </div>
+
+                           <div className="flex items-center justify-between p-5 bg-[#F9FAFB] rounded-2xl border border-[#E5E7EB]">
+                              <div className="flex items-center gap-4">
+                                 <div className={`w-8 h-8 rounded-full ${showUnduhSkl ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-200 text-slate-400'} flex items-center justify-center`}>
+                                    {showUnduhSkl ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                                 </div>
+                                 <div className="pr-4">
+                                    <p className="text-sm font-bold text-[#111827]">Tampilkan Tombol Unduh SKL (PDF)</p>
+                                    <p className="text-[12px] font-normal text-[#6B7280]">Aktifkan agar siswa dapat mengunduh SKL setelah melihat hasil kelulusan.</p>
+                                 </div>
+                              </div>
+                              <div
+                                onClick={() => setShowUnduhSkl(!showUnduhSkl)}
+                                className={`w-12 h-6 ${showUnduhSkl ? 'bg-[#1D4ED8]' : 'bg-slate-200'} rounded-full p-1 cursor-pointer transition-all flex items-center`}
+                              >
+                                 <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-all ${showUnduhSkl ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                              </div>
+                           </div>
                       </div>
                    </div>
 
@@ -3536,16 +3559,17 @@ export default function App() {
 
                      <div className="mt-10 flex flex-col sm:flex-row gap-4 pt-8 border-t border-[#E5E7EB] items-center justify-between">
                         <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto order-2 sm:order-1 no-print">
-                           {/* Unduh SKL button — hidden per request, module preserved */}
-                           <button
-                              onClick={handlePrintResult}
-                              className="flex-1 sm:flex-none quantum-button px-5 flex items-center justify-center gap-2"
-                              title="Cetak / Simpan sebagai PDF"
-                              style={{ display: 'none' }}
-                           >
-                              <Printer size={16} />
-                              Unduh SKL (PDF)
-                           </button>
+                           {/* Unduh SKL button — visibility controlled by admin toggle (show_unduh_skl setting) */}
+                           {showUnduhSkl && (
+                             <button
+                                onClick={handlePrintResult}
+                                className="flex-1 sm:flex-none quantum-button px-5 flex items-center justify-center gap-2"
+                                title="Cetak / Simpan sebagai PDF"
+                             >
+                                <Printer size={16} />
+                                Unduh SKL (PDF)
+                             </button>
+                           )}
                            <button
                               onClick={handleShareWhatsApp}
                               className="flex-1 sm:flex-none px-5 py-3 rounded-xl font-bold text-[13px] bg-[#25D366] text-white hover:bg-[#1ebe57] transition-colors flex items-center justify-center gap-2 shadow-[0_8px_20px_-8px_rgba(37,211,102,0.5)]"

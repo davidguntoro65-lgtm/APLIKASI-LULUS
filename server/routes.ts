@@ -32,6 +32,7 @@ const ALLOWED_SETTING_KEYS = [
   'announcement_date',
   'announcement_time',
   'maintenance_mode',
+  'show_unduh_skl',
   'headline',
   'school_name',
   'school_npsn',
@@ -151,6 +152,7 @@ export function buildApiRouter(): Router {
       announcement_datetime: iso,
       announcement_active: active,
       maintenance_mode: s.maintenance_mode === '1',
+      show_unduh_skl: s.show_unduh_skl === '1',
     }));
   }));
 
@@ -320,6 +322,7 @@ export function buildApiRouter(): Router {
       announcement_date: s.announcement_date ?? '',
       announcement_time: s.announcement_time ?? '',
       maintenance_mode: s.maintenance_mode === '1',
+      show_unduh_skl: s.show_unduh_skl === '1',
       headline: s.headline ?? '',
       school_name: s.school_name ?? 'SMKN 1 Wonogiri',
       school_npsn: s.school_npsn ?? '',
@@ -341,6 +344,10 @@ export function buildApiRouter(): Router {
       if ('maintenance_mode' in body) {
         const v = body.maintenance_mode;
         body.maintenance_mode = (v === true || v === 1 || v === '1' || v === 'true') ? '1' : '0';
+      }
+      if ('show_unduh_skl' in body) {
+        const v = body.show_unduh_skl;
+        body.show_unduh_skl = (v === true || v === 1 || v === '1' || v === 'true') ? '1' : '0';
       }
       const patch: Record<string, string> = {};
       for (const k of ALLOWED_SETTING_KEYS) {
