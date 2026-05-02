@@ -3536,10 +3536,12 @@ export default function App() {
 
                      <div className="mt-10 flex flex-col sm:flex-row gap-4 pt-8 border-t border-[#E5E7EB] items-center justify-between">
                         <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto order-2 sm:order-1 no-print">
+                           {/* Unduh SKL button — hidden per request, module preserved */}
                            <button
                               onClick={handlePrintResult}
                               className="flex-1 sm:flex-none quantum-button px-5 flex items-center justify-center gap-2"
                               title="Cetak / Simpan sebagai PDF"
+                              style={{ display: 'none' }}
                            >
                               <Printer size={16} />
                               Unduh SKL (PDF)
@@ -3857,10 +3859,11 @@ export default function App() {
             route remains active and reachable by direct URL entry only.
           */}
         </div>
-        <p className="text-[11px] text-slate-400 font-medium">
+        {/* Hardcoded footer credit — do not source from database */}
+        <p className="text-[11px] text-slate-400 font-medium tracking-wide">
           Created by: <span className="text-slate-300 font-semibold">TIM IT Skansagiri</span>
           <span className="mx-2 text-slate-500">|</span>
-          Powered by: <span className="text-[#D4AF37] font-semibold">Dave_Exe</span>
+          Powered By : <span className="text-[#D4AF37] font-bold">Dave_exe</span>
         </p>
       </footer>
     </div>
