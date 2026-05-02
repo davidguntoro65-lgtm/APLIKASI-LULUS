@@ -671,6 +671,130 @@ export function buildApiRouter(): Router {
     });
   }));
 
+  // -------- Database Backup (SQL dump via pure Node.js) --------
+  r.post('/deploy/backup-db', aw(async (req, res) => {
+    // Accepts the same token as /deploy/setup:
+    //   1. DEPLOY_TOKEN (env var) via Bearer or x-admin-token
+    //   2. Active admin session token (Bearer)
+    //   3. Admin password as fallback (for the built-in client)
+    const given = readToken(req) ?? '';
+    const deployToken = process.env.DEPLOY_TOKEN ?? '';
+    let authorized = false;
+
+    if (deployToken) {
+      try {
+        authorized = !!given && given.length === deployToken.length &&
+          crypto.timingSafeEqual(Buffer.from(given), Buffer.from(deployToken));
+      } catch { authorized = false; }
+    }
+    if (!authorized && given && sessions.has(given)) authorized = true;
+    if (!authorized && given === ADMIN_PASS) authorized = true;
+
+    if (!authorized) {
+      return res.status(401).json({ success: false, message: 'Token tidak valid. Login admin terlebih dahulu.' });
+    }
+
+    // Helper: escape a JS value to a safe PostgreSQL literal.
+    function pgLiteral(val: unknown): string {
+      if (val === null || val === undefined) return 'NULL';
+      if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+      if (typeof val === 'number') return Number.isFinite(val) ? String(val) : 'NULL';
+      if (val instanceof Date) {
+        return Number.isNaN(val.getTime()) ? 'NULL' : `'${val.toISOString()}'`;
+      }
+      if (typeof val === 'object') {
+        // JSONB columns — serialize then escape as a string literal cast to jsonb
+        const j = JSON.stringify(val).replace(/'/g, "''");
+        return `'${j}'::jsonb`;
+      }
+      // String — escape single quotes by doubling
+      return `'${String(val).replace(/'/g, "''")}'`;
+    }
+
+    // Dump one table: returns SQL lines (no trailing newline on last line).
+    async function dumpTable(
+      tableName: string,
+      orderBy: string,
+      jsonbCols: string[] = [],
+    ): Promise<string[]> {
+      const { rows } = await pool.query(`SELECT * FROM ${tableName} ORDER BY ${orderBy}`);
+      if (rows.length === 0) return [`-- (no rows in ${tableName})`];
+
+      const cols = Object.keys(rows[0]);
+      const lines: string[] = [];
+      const BATCH = 100;
+
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const batch = rows.slice(i, i + BATCH);
+        const colList = cols.map((c) => `"${c}"`).join(', ');
+        const valueClauses = batch.map((row) => {
+          const vals = cols.map((c) => {
+            const v = (row as Record<string, unknown>)[c];
+            if (jsonbCols.includes(c) && v !== null && v !== undefined) {
+              const j = JSON.stringify(v).replace(/'/g, "''");
+              return `'${j}'::jsonb`;
+            }
+            return pgLiteral(v);
+          });
+          return `  (${vals.join(', ')})`;
+        });
+        lines.push(`INSERT INTO "${tableName}" (${colList}) VALUES`);
+        lines.push(valueClauses.join(',\n') + ';');
+      }
+      return lines;
+    }
+
+    const ts = new Date();
+    const stamp = ts.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `backup_db_${stamp}.sql`;
+
+    const parts: string[] = [];
+
+    parts.push(`-- ============================================================`);
+    parts.push(`-- Portal Kelulusan SMKN 1 Wonogiri — Database Backup`);
+    parts.push(`-- Generated  : ${ts.toISOString()}`);
+    parts.push(`-- Generator  : Node.js pure-JS dump (no pg_dump required)`);
+    parts.push(`-- Tables     : students, settings, galleries, import_archives`);
+    parts.push(`-- Usage      : psql $DATABASE_URL < ${filename}`);
+    parts.push(`-- ============================================================`);
+    parts.push(``);
+    parts.push(`SET client_encoding = 'UTF8';`);
+    parts.push(`SET standard_conforming_strings = on;`);
+    parts.push(``);
+
+    const tables: Array<{ name: string; order: string; jsonb: string[]; seq?: string }> = [
+      { name: 'students',        order: 'id ASC',  jsonb: [],                             seq: 'students_id_seq' },
+      { name: 'settings',        order: 'key ASC', jsonb: [] },
+      { name: 'galleries',       order: 'id ASC',  jsonb: [],                             seq: 'galleries_id_seq' },
+      { name: 'import_archives', order: 'id ASC',  jsonb: ['errors', 'snapshot'],         seq: 'import_archives_id_seq' },
+    ];
+
+    for (const t of tables) {
+      parts.push(`-- ------------------------------------------------------------`);
+      parts.push(`-- Table: ${t.name}`);
+      parts.push(`-- ------------------------------------------------------------`);
+      parts.push(`TRUNCATE TABLE "${t.name}" RESTART IDENTITY CASCADE;`);
+      const dumpLines = await dumpTable(t.name, t.order, t.jsonb);
+      parts.push(...dumpLines);
+      if (t.seq) {
+        parts.push(`SELECT setval('${t.seq}', COALESCE((SELECT MAX(id) FROM "${t.name}"), 0), true);`);
+      }
+      parts.push(``);
+    }
+
+    parts.push(`-- ============================================================`);
+    parts.push(`-- End of backup`);
+    parts.push(`-- ============================================================`);
+
+    const sql = parts.join('\n');
+    const buf = Buffer.from(sql, 'utf8');
+
+    res.setHeader('Content-Type', 'application/sql; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buf.byteLength);
+    res.send(buf);
+  }));
+
   // 404 inside /api so the SPA fallback never catches these
   r.use((_req, res) => res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan.' }));
 

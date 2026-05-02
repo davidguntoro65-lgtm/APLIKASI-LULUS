@@ -1252,6 +1252,36 @@ export default function App() {
     showToast('success', 'Backup data lokal diunduh.');
   };
 
+  const [dbBackupBusy, setDbBackupBusy] = useState(false);
+  const handleDownloadDbBackup = async () => {
+    setDbBackupBusy(true);
+    try {
+      const resp = await fetch('/api/deploy/backup-db', {
+        method: 'POST',
+        headers: { 'x-admin-token': ADMIN_PASS },
+      });
+      if (!resp.ok) {
+        const j = await resp.json().catch(() => ({}));
+        showToast('error', j?.message ?? 'Gagal mengunduh backup database.');
+        return;
+      }
+      const blob = await resp.blob();
+      const stamp = new Date().toISOString().slice(0, 10);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_db_${stamp}.sql`;
+      a.click();
+      URL.revokeObjectURL(url);
+      auditLog.log({ actor: 'admin', action: 'backup.db.download' });
+      showToast('success', 'Backup database SQL berhasil diunduh.');
+    } catch {
+      showToast('error', 'Tidak dapat menghubungi server untuk backup database.');
+    } finally {
+      setDbBackupBusy(false);
+    }
+  };
+
   const handleClearAllLocal = () => {
     askConfirm({
       title: 'Hapus Semua Data Lokal',
@@ -2717,7 +2747,18 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <button
+                      onClick={handleDownloadDbBackup}
+                      disabled={dbBackupBusy}
+                      className="p-5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-all text-left border border-emerald-200 disabled:opacity-60 disabled:cursor-wait"
+                    >
+                      <Database size={20} className="mb-2" />
+                      <p className="text-[12px] font-black uppercase tracking-widest">
+                        {dbBackupBusy ? 'Mengunduh…' : 'Backup DB SQL'}
+                      </p>
+                      <p className="text-[11px] font-medium mt-1 opacity-80">Dump PostgreSQL siap restore.</p>
+                    </button>
                     <button
                       onClick={handleDownloadBackup}
                       className="p-5 rounded-2xl bg-[#EFF4FF] hover:bg-[#DBEAFE] text-[#1D4ED8] transition-all text-left border border-[#DBEAFE]"
