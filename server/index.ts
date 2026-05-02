@@ -9,6 +9,19 @@ const PORT = Number(process.env.PORT ?? 5000);
 const HOST = '0.0.0.0';
 const isDev = process.env.NODE_ENV !== 'production';
 
+// ── Production security check ────────────────────────────────────────────────
+// Warn loudly if DEPLOY_TOKEN is unset in production. Without it, the
+// /api/deploy/setup endpoint falls back to the admin password — functional
+// but less secure. Set DEPLOY_TOKEN in Replit Secrets or your .env file.
+if (!isDev && !process.env.DEPLOY_TOKEN) {
+  console.warn(
+    '\n⚠️  [security] DEPLOY_TOKEN is not set.' +
+    '\n   The /api/deploy/setup endpoint will accept the admin password as a token.' +
+    '\n   Set DEPLOY_TOKEN in Replit Secrets (or .env) for dedicated production security.\n',
+  );
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 async function start() {
   const app = express();
 

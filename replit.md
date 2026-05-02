@@ -45,9 +45,16 @@ The application is a full-stack system comprising a React + TypeScript SPA (Vite
 **Deployment & Environment:**
 - Configured for **VM deployment** on Replit to ensure the Express server remains online and data persists.
 - Build command: `npm run build` (Vite static bundle into `dist/`).
-- Run command: `npm run start` (`NODE_ENV=production npx tsx server/index.ts`).
+- Run command: `npm run start` (uses `cross-env NODE_ENV=production tsx server/index.ts` — works on Windows and Linux).
+- `npm run clean` uses `rimraf dist` — cross-platform safe.
 - In production, the server serves static files from `dist/` and uses an SPA fallback.
-- Environment variables include `PORT`, `APP_URL`, `DEPLOY_TOKEN`, and `GEMINI_API_KEY`.
+- Environment variables:
+  - `DATABASE_URL` — **Required.** Provided automatically by Replit PostgreSQL.
+  - `PORT` — Optional. Defaults to `5000`.
+  - `APP_URL` — Optional. Derived from request host at runtime.
+  - `DEPLOY_TOKEN` — **Recommended for production.** Set in Replit Secrets (or `.env`). Without it, `/api/deploy/setup` falls back to the admin password as the token. The server prints a ⚠️ warning on startup if this is unset in production mode.
+
+**To set DEPLOY_TOKEN on Replit:** Go to the Secrets tab → add key `DEPLOY_TOKEN` → set a strong random value (e.g. 32+ hex chars). On a VPS, add it to your `.env` file.
 
 **UI/UX and Visual Identity ("Premium Helpdesk"):**
 - **Color Scheme:** Deep Navy (`#0F172A`), Royal Blue (`#1D4ED8`), Premium Gold (`#D4AF37`), Charcoal (`#1A1A1A`), Pure White (`#FFFFFF`), Slate (`#F8FAFC`).
@@ -59,7 +66,10 @@ The application is a full-stack system comprising a React + TypeScript SPA (Vite
 
 - **Replit PostgreSQL:** The primary database for persistence.
 - **Drizzle ORM:** Used for interacting with the PostgreSQL database.
-- **`@google/genai` (Gemini API client):** Used for AI capabilities, requiring `GEMINI_API_KEY`.
 - **`xlsx`:** Client-side library for parsing Excel files during student data import.
 - **`pg`:** Node.js PostgreSQL client.
+- **`cross-env`:** Ensures `NODE_ENV=production` works on both Windows and Linux in npm scripts.
+- **`rimraf`:** Cross-platform `rm -rf` replacement for the `clean` script.
 - **`crypto`:** Node.js built-in module used for secure credential comparison.
+
+> Note: `@google/genai` and `drizzle-zod` were removed in the May 2026 audit — both were unused in the active codebase.
