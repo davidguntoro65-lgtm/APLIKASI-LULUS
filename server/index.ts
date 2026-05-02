@@ -9,16 +9,49 @@ const PORT = Number(process.env.PORT ?? 5000);
 const HOST = '0.0.0.0';
 const isDev = process.env.NODE_ENV !== 'production';
 
+// ── Filesystem error logger ───────────────────────────────────────────────────
+// Writes timestamped errors to logs/stderr.log so cPanel / VPS operators can
+// diagnose startup failures without a live terminal session.
+const LOG_DIR = path.resolve(process.cwd(), 'logs');
+const LOG_FILE = path.join(LOG_DIR, 'stderr.log');
+
+function ensureLogDir() {
+  try {
+    if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
+  } catch { /* best-effort */ }
+}
+
+function writeLog(level: 'ERROR' | 'WARN', message: string, detail?: unknown) {
+  ensureLogDir();
+  const ts = new Date().toISOString();
+  const extra = detail
+    ? '\n  ' + (detail instanceof Error
+        ? `${detail.message}\n  ${detail.stack ?? ''}`
+        : String(detail))
+    : '';
+  const line = `[${ts}] [${level}] ${message}${extra}\n`;
+  try { fs.appendFileSync(LOG_FILE, line); } catch { /* best-effort */ }
+  if (level === 'ERROR') console.error(line.trimEnd());
+  else console.warn(line.trimEnd());
+}
+
+process.on('uncaughtException', (err) => {
+  writeLog('ERROR', 'Uncaught exception — process will exit', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  writeLog('ERROR', 'Unhandled promise rejection', reason);
+});
+// ────────────────────────────────────────────────────────────────────────────
+
 // ── Production security check ────────────────────────────────────────────────
-// Warn loudly if DEPLOY_TOKEN is unset in production. Without it, the
-// /api/deploy/setup endpoint falls back to the admin password — functional
-// but less secure. Set DEPLOY_TOKEN in Replit Secrets or your .env file.
 if (!isDev && !process.env.DEPLOY_TOKEN) {
-  console.warn(
-    '\n⚠️  [security] DEPLOY_TOKEN is not set.' +
-    '\n   The /api/deploy/setup endpoint will accept the admin password as a token.' +
-    '\n   Set DEPLOY_TOKEN in Replit Secrets (or .env) for dedicated production security.\n',
-  );
+  const msg =
+    'DEPLOY_TOKEN is not set. /api/deploy/setup will accept the admin ' +
+    'password as a token. Set DEPLOY_TOKEN in Replit Secrets or .env.';
+  writeLog('WARN', msg);
+  console.warn('\n⚠️  [security]', msg, '\n');
 }
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -26,7 +59,7 @@ async function start() {
   const app = express();
 
   // Serve uploaded files (logos, principal photos, gallery photos).
-  // The API returns relative paths like "branding/foo.png" → exposed at /uploads/branding/foo.png
+  // API returns relative paths like "branding/foo.png" → /uploads/branding/foo.png
   const uploadRoot = path.resolve(process.cwd(), 'server', 'uploads');
   if (!fs.existsSync(uploadRoot)) fs.mkdirSync(uploadRoot, { recursive: true });
   app.use('/uploads', express.static(uploadRoot, { maxAge: '7d' }));
@@ -49,18 +82,27 @@ async function start() {
     });
     app.use(vite.middlewares);
   } else {
-    const dist = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(dist));
-    app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+    // Production: serve the pre-built SPA from dist/public.
+    // Vite is configured to output there (vite.config.ts → build.outDir).
+    const distPublic = path.resolve(process.cwd(), 'dist', 'public');
+    if (!fs.existsSync(distPublic)) {
+      writeLog('ERROR', `dist/public not found at ${distPublic}. Run 'npm run build' first.`);
+      throw new Error(`dist/public not found. Run 'npm run build' first.`);
+    }
+    app.use(express.static(distPublic, { maxAge: '1d' }));
+    // SPA fallback — all unknown routes return index.html so client-side
+    // routing (e.g. /panel-admin) works correctly.
+    app.get('*', (_req, res) => res.sendFile(path.join(distPublic, 'index.html')));
   }
 
   httpServer.listen(PORT, HOST, () => {
     const appUrl = process.env.APP_URL || `http://${HOST}:${PORT}`;
     console.log(`[server] ready on http://${HOST}:${PORT} (APP_URL=${appUrl})`);
+    writeLog('WARN', `Server started — port=${PORT} env=${process.env.NODE_ENV ?? 'development'}`);
   });
 }
 
 start().catch((err) => {
-  console.error('[server] fatal startup error:', err);
+  writeLog('ERROR', 'Fatal startup error', err);
   process.exit(1);
 });
